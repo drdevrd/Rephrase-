@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RePhrase</string>
+    <string name="accessibility_description">Allows RePhrase to detect selected text and show rephrasing options as a floating bubble over any app.</string>
+</resources>
