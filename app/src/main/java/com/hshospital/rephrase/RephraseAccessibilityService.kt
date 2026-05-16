@@ -23,7 +23,6 @@ import org.json.JSONObject
 import java.io.IOException
 
 class RephraseAccessibilityService : AccessibilityService() {
-
     private var windowManager: WindowManager? = null
     private var bubbleView: android.view.View? = null
     private var selectedText: String = ""
@@ -33,16 +32,16 @@ class RephraseAccessibilityService : AccessibilityService() {
     private lateinit var prefs: SharedPreferences
 
     private val tones = mapOf(
-        "formal"    to "Rephrase formally and professionally. Return only the rephrased text, nothing else.",
-        "casual"    to "Rephrase in a friendly, casual conversational tone. Return only the rephrased text, nothing else.",
-        "medical"   to "Rephrase in precise clinical medical language. Return only the rephrased text, nothing else.",
-        "simple"    to "Rephrase in very simple language a patient can understand. No jargon. Return only the rephrased text, nothing else.",
-        "empathy"   to "Rephrase in a warm, empathetic tone for a doctor speaking to a worried parent. Return only the rephrased text, nothing else.",
-        "concise"   to "Make this as short as possible without losing meaning. Return only the rephrased text, nothing else.",
-        "email"     to "Rephrase as a polished professional email body. Return only the rephrased text, nothing else.",
-        "discharge" to "Rephrase in structured clinical discharge summary language. Return only the rephrased text, nothing else.",
-        "tamil"     to "Translate to simple Tamil a patient in Tamil Nadu can understand. Return only the Tamil text, nothing else.",
-        "broadcast" to "Rephrase as a friendly WhatsApp broadcast from a pediatric doctor to parents. Return only the rephrased text, nothing else."
+        "formal" to "Rephrase formally. Return only rephrased text.",
+        "casual" to "Rephrase casually. Return only rephrased text.",
+        "medical" to "Rephrase clinically. Return only rephrased text.",
+        "simple" to "Rephrase simply. Return only rephrased text.",
+        "empathy" to "Rephrase empathetically. Return only rephrased text.",
+        "concise" to "Rephrase concisely. Return only rephrased text.",
+        "email" to "Rephrase as email. Return only rephrased text.",
+        "discharge" to "Rephrase as discharge summary. Return only rephrased text.",
+        "tamil" to "Translate to simple Tamil. Return only Tamil text.",
+        "broadcast" to "Rephrase as WhatsApp broadcast. Return only rephrased text."
     )
 
     override fun onServiceConnected() {
@@ -57,7 +56,6 @@ class RephraseAccessibilityService : AccessibilityService() {
             val text = source.text?.toString() ?: return
             val start = source.textSelectionStart
             val end = source.textSelectionEnd
-
             if (start >= 0 && end > start && end <= text.length) {
                 selectedText = text.substring(start, end)
                 activeNode = source
@@ -69,82 +67,61 @@ class RephraseAccessibilityService : AccessibilityService() {
     private fun showBubble() {
         if (selectedText.isEmpty()) return
         dismissBubble()
-
         val inflater = LayoutInflater.from(this)
         val view = inflater.inflate(R.layout.floating_bubble, null)
         bubbleView = view
-
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         )
         params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         params.y = 200
-
-        val buttonMap = mapOf(
-            R.id.btn_formal    to "formal",
-            R.id.btn_casual    to "casual",
-            R.id.btn_medical   to "medical",
-            R.id.btn_simple    to "simple",
-            R.id.btn_empathy   to "empathy",
-            R.id.btn_concise   to "concise",
-            R.id.btn_email     to "email",
-            R.id.btn_discharge to "discharge",
-            R.id.btn_tamil     to "tamil",
-            R.id.btn_broadcast to "broadcast"
-        )
-
         val statusMsg = view.findViewById<TextView>(R.id.statusMsg)
-
-        buttonMap.forEach { (btnId, toneKey) ->
+        mapOf(
+            R.id.btn_formal to "formal",
+            R.id.btn_casual to "casual",
+            R.id.btn_medical to "medical",
+            R.id.btn_simple to "simple",
+            R.id.btn_empathy to "empathy",
+            R.id.btn_concise to "concise",
+            R.id.btn_email to "email",
+            R.id.btn_discharge to "discharge",
+            R.id.btn_tamil to "tamil",
+            R.id.btn_broadcast to "broadcast"
+        ).forEach { (btnId, toneKey) ->
             view.findViewById<Button>(btnId).setOnClickListener {
-                statusMsg.text = "⏳ Rephrasing..."
-                callClaudeApi(selectedText, tones[toneKey]!!) { rephrased ->
+                statusMsg.text = "Rephrasing..."
+                callApi(selectedText, tones[toneKey]!!) { result ->
                     handler.post {
-                        if (rephrased != null) {
-                            pasteText(rephrased)
-                            statusMsg.text = "✅ Done!"
+                        if (result != null) {
+                            paste(result)
+                            statusMsg.text = "Done!"
                             handler.postDelayed({ dismissBubble() }, 1500)
                         } else {
-                            statusMsg.text = "⚠ Failed. Try again."
+                            statusMsg.text = "Failed. Try again."
                         }
                     }
                 }
             }
         }
-
-        view.findViewById<Button>(R.id.btn_close).setOnClickListener {
-            dismissBubble()
-        }
-
-        try {
-            windowManager?.addView(view, params)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        view.findViewById<Button>(R.id.btn_close).setOnClickListener { dismissBubble() }
+        try { windowManager?.addView(view, params) } catch (e: Exception) { e.printStackTrace() }
     }
 
-    private fun pasteText(text: String) {
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("rephrased", text))
-        activeNode?.let { node ->
-            val args = android.os.Bundle()
-            args.putCharSequence(
-                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                text
-            )
-            node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-        }
+    private fun paste(text: String) {
+        val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cb.setPrimaryClip(ClipData.newPlainText("rephrased", text))
+        val args = android.os.Bundle()
+        args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+        activeNode?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
-    private fun callClaudeApi(text: String, prompt: String, callback: (String?) -> Unit) {
-        val apiKey = prefs.getString("api_key", "") ?: ""
-        if (apiKey.isEmpty()) { callback(null); return }
-
+    private fun callApi(text: String, prompt: String, callback: (String?) -> Unit) {
+        val key = prefs.getString("api_key", "") ?: ""
+        if (key.isEmpty()) { callback(null); return }
         val body = JSONObject().apply {
             put("model", "claude-haiku-4-5-20251001")
             put("max_tokens", 500)
@@ -154,8 +131,31 @@ class RephraseAccessibilityService : AccessibilityService() {
                 put("content", text)
             }))
         }
-
-        val request = Request.Builder()
+        val req = Request.Builder()
             .url("https://api.anthropic.com/v1/messages")
             .addHeader("Content-Type", "application/json")
-            .addHeader("x-api-key", apiKey)
+            .addHeader("x-api-key", key)
+            .addHeader("anthropic-version", "2023-06-01")
+            .post(body.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+        client.newCall(req).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) { callback(null) }
+            override fun onResponse(call: Call, response: Response) {
+                try {
+                    val json = JSONObject(response.body?.string() ?: "")
+                    callback(json.getJSONArray("content").getJSONObject(0).getString("text"))
+                } catch (e: Exception) { callback(null) }
+            }
+        })
+    }
+
+    private fun dismissBubble() {
+        bubbleView?.let {
+            try { windowManager?.removeView(it) } catch (e: Exception) {}
+            bubbleView = null
+        }
+    }
+
+    override fun onInterrupt() { dismissBubble() }
+    override fun onDestroy() { dismissBubble(); super.onDestroy() }
+}
