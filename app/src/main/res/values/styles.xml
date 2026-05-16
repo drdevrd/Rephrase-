@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <item name="colorPrimary">#1f6feb</item>
+        <item name="colorPrimaryDark">#0d1117</item>
+        <item name="colorAccent">#388bfd</item>
+    </style>
+</resources>
