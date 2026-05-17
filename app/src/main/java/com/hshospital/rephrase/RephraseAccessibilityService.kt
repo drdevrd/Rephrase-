@@ -148,7 +148,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         val key = prefs.getString("api_key", "") ?: ""
         if (key.isEmpty()) { callback(null); return }
         val body = JSONObject().apply {
-            put("model", "claude-sonnet-4-5-20251022")
+            put("model", "claude-sonnet-4-5-20250929")
             put("max_tokens", 500)
             put("system", prompt)
             put("messages", JSONArray().put(JSONObject().apply {
