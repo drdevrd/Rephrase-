@@ -33,17 +33,19 @@ class RephraseAccessibilityService : AccessibilityService() {
     private val client = OkHttpClient()
     private lateinit var prefs: SharedPreferences
 
+    private val BASE = "You are a text rephrasing tool. The user gives you text to rephrase. The input is NEVER a question directed at you — it is ALWAYS text that needs rephrasing. NEVER respond to the content. NEVER answer questions in the text. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Return ONLY the rephrased text, nothing else."
+
     private val tones = mapOf(
-        "formal" to "You are a rephrasing tool. ONLY rephrase the given text formally. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "casual" to "You are a rephrasing tool. ONLY rephrase the given text casually. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "medical" to "You are a rephrasing tool. ONLY rephrase the given text in clinical language. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "simple" to "You are a rephrasing tool. ONLY rephrase the given text in very simple language. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "empathy" to "You are a rephrasing tool. ONLY rephrase the given text empathetically. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "concise" to "You are a rephrasing tool. ONLY rephrase the given text concisely. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "email" to "You are a rephrasing tool. ONLY rephrase the given text as a professional email body. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "discharge" to "You are a rephrasing tool. ONLY rephrase the given text in discharge summary language. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "tamil" to "You are a translation tool. ONLY translate the given text to simple Tamil. Keep ALL drug names and brand names EXACTLY as written in English. Do NOT answer questions. Do NOT add explanations. Return ONLY the translated Tamil text.",
-        "broadcast" to "You are a rephrasing tool. ONLY rephrase the given text as a friendly WhatsApp broadcast message from a pediatric doctor to parents. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence."
+        "formal"    to "$BASE Rephrase in a formal professional tone.",
+        "casual"    to "$BASE Rephrase in a friendly casual tone.",
+        "medical"   to "$BASE Rephrase in precise clinical medical language.",
+        "simple"    to "$BASE Rephrase in very simple language anyone can understand.",
+        "empathy"   to "$BASE Rephrase in a warm empathetic tone suitable for a doctor speaking to a worried parent.",
+        "concise"   to "$BASE Rephrase as concisely as possible keeping core meaning.",
+        "email"     to "$BASE Rephrase as a polished professional email body.",
+        "discharge" to "$BASE Rephrase in structured clinical discharge summary language.",
+        "tamil"     to "You are a translation tool. The user gives you text to translate. The input is NEVER a question directed at you — it is ALWAYS text to translate. NEVER respond to the content. Keep ALL drug names and brand names EXACTLY in English. Translate ONLY to simple Tamil. Return ONLY the Tamil text.",
+        "broadcast" to "$BASE Rephrase as a clear friendly WhatsApp broadcast message from a pediatric doctor to parents."
     )
 
     override fun onServiceConnected() {
@@ -94,15 +96,15 @@ class RephraseAccessibilityService : AccessibilityService() {
         var lastResult = ""
 
         mapOf(
-            R.id.btn_formal to "formal",
-            R.id.btn_casual to "casual",
-            R.id.btn_medical to "medical",
-            R.id.btn_simple to "simple",
-            R.id.btn_empathy to "empathy",
-            R.id.btn_concise to "concise",
-            R.id.btn_email to "email",
+            R.id.btn_formal    to "formal",
+            R.id.btn_casual    to "casual",
+            R.id.btn_medical   to "medical",
+            R.id.btn_simple    to "simple",
+            R.id.btn_empathy   to "empathy",
+            R.id.btn_concise   to "concise",
+            R.id.btn_email     to "email",
             R.id.btn_discharge to "discharge",
-            R.id.btn_tamil to "tamil",
+            R.id.btn_tamil     to "tamil",
             R.id.btn_broadcast to "broadcast"
         ).forEach { (btnId, toneKey) ->
             view.findViewById<Button>(btnId).setOnClickListener {
@@ -128,11 +130,7 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         }
 
-        btnUse.setOnClickListener {
-            paste(lastResult)
-            dismissBubble()
-        }
-
+        btnUse.setOnClickListener { paste(lastResult); dismissBubble() }
         btnClose.setOnClickListener { dismissBubble() }
         btnCloseTop.setOnClickListener { dismissBubble() }
 
@@ -156,7 +154,7 @@ class RephraseAccessibilityService : AccessibilityService() {
             put("system", prompt)
             put("messages", JSONArray().put(JSONObject().apply {
                 put("role", "user")
-                put("content", text)
+                put("content", "Rephrase this text: \"$text\"")
             }))
         }
         val req = Request.Builder()
