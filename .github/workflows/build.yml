@@ -27,7 +27,7 @@ jobs:
         run: |
           keytool -genkeypair -v \
             -keystore app/hshospital.keystore \
-            -alias ${{ secrets.KEY_ALIAS }} \
+            -alias hshospital \
             -keyalg RSA -keysize 2048 \
             -validity 36500 \
             -storepass ${{ secrets.KEY_STORE_PASSWORD }} \
@@ -45,7 +45,7 @@ jobs:
           gradle assembleDebug \
             -Pandroid.injected.signing.store.file=$PWD/app/hshospital.keystore \
             -Pandroid.injected.signing.store.password=${{ secrets.KEY_STORE_PASSWORD }} \
-            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.alias=hshospital \
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} \
             --stacktrace
 
