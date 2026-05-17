@@ -30,8 +30,8 @@ jobs:
             -alias hshospital \
             -keyalg RSA -keysize 2048 \
             -validity 36500 \
-            -storepass ${{ secrets.KEY_STORE_PASSWORD }} \
-            -keypass ${{ secrets.KEY_PASSWORD }} \
+            -storepass android123 \
+            -keypass android123 \
             -dname "CN=HSHospital, OU=Android, O=HSHospital, L=Coimbatore, S=TN, C=IN"
 
       - name: Install Gradle
@@ -44,9 +44,9 @@ jobs:
         run: |
           gradle assembleDebug \
             -Pandroid.injected.signing.store.file=$PWD/app/hshospital.keystore \
-            -Pandroid.injected.signing.store.password=${{ secrets.KEY_STORE_PASSWORD }} \
+            -Pandroid.injected.signing.store.password=android123 \
             -Pandroid.injected.signing.key.alias=hshospital \
-            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} \
+            -Pandroid.injected.signing.key.password=android123 \
             --stacktrace
 
       - name: Upload APK
