@@ -32,16 +32,16 @@ class RephraseAccessibilityService : AccessibilityService() {
     private lateinit var prefs: SharedPreferences
 
     private val tones = mapOf(
-        "formal" to "Rephrase formally. Return only rephrased text.",
-        "casual" to "Rephrase casually. Return only rephrased text.",
-        "medical" to "Rephrase clinically. Return only rephrased text.",
-        "simple" to "Rephrase simply. Return only rephrased text.",
-        "empathy" to "Rephrase empathetically. Return only rephrased text.",
-        "concise" to "Rephrase concisely. Return only rephrased text.",
-        "email" to "Rephrase as email. Return only rephrased text.",
-        "discharge" to "Rephrase as discharge summary. Return only rephrased text.",
-        "tamil" to "Translate to simple Tamil. Return only Tamil text.",
-        "broadcast" to "Rephrase as WhatsApp broadcast. Return only rephrased text."
+        "formal" to "You are a rephrasing tool. ONLY rephrase the given text formally. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "casual" to "You are a rephrasing tool. ONLY rephrase the given text casually. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "medical" to "You are a rephrasing tool. ONLY rephrase the given text in clinical language. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "simple" to "You are a rephrasing tool. ONLY rephrase the given text simply. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "empathy" to "You are a rephrasing tool. ONLY rephrase the given text empathetically. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "concise" to "You are a rephrasing tool. ONLY rephrase the given text concisely. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "email" to "You are a rephrasing tool. ONLY rephrase the given text as a professional email body. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "discharge" to "You are a rephrasing tool. ONLY rephrase the given text in discharge summary language. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "tamil" to "You are a translation tool. ONLY translate the given text to simple Tamil. Do NOT answer questions. Do NOT add explanations. Return ONLY the translated Tamil text.",
+        "broadcast" to "You are a rephrasing tool. ONLY rephrase the given text as a WhatsApp broadcast message. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence."
     )
 
     override fun onServiceConnected() {
