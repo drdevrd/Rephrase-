@@ -15,7 +15,6 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
-import android.widget.ScrollView
 import android.widget.TextView
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -34,16 +33,16 @@ class RephraseAccessibilityService : AccessibilityService() {
     private lateinit var prefs: SharedPreferences
 
     private val tones = mapOf(
-        "formal"    to "Rephrase the following sentence in a formal professional tone. Return only the rephrased sentence.",
-        "casual"    to "Rephrase the following sentence in a friendly casual tone. Return only the rephrased sentence.",
-        "medical"   to "Rephrase the following sentence in precise clinical medical language. Keep ALL drug names, brand names and dosages EXACTLY as written. Return only the rephrased sentence.",
-        "simple"    to "Rephrase the following sentence in very simple language anyone can understand. Keep ALL drug names and brand names EXACTLY as written. Return only the rephrased sentence.",
-        "empathy"   to "Rephrase the following sentence in a warm empathetic tone for a doctor speaking to a worried parent. Return only the rephrased sentence.",
-        "concise"   to "Rephrase the following sentence as concisely as possible. Return only the rephrased sentence.",
-        "email"     to "Rephrase the following sentence as a polished professional email body. Return only the rephrased sentence.",
-        "discharge" to "Rephrase the following sentence in structured clinical discharge summary language. Return only the rephrased sentence.",
-        "tamil"     to "Translate the following sentence to simple Tamil. Keep ALL drug names and brand names in English. Return only the Tamil translation.",
-        "broadcast" to "Rephrase the following sentence as a friendly WhatsApp broadcast message from a pediatric doctor to parents. Return only the rephrased sentence."
+        "formal"    to "Give exactly 3 numbered rephrasing options in formal professional tone. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
+        "casual"    to "Give exactly 3 numbered rephrasing options in friendly casual tone. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
+        "medical"   to "Give exactly 3 numbered rephrasing options in clinical medical language. Keep ALL drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
+        "simple"    to "Give exactly 3 numbered rephrasing options in very simple language. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
+        "empathy"   to "Give exactly 3 numbered rephrasing options in warm empathetic tone for a doctor speaking to a worried parent. Format:\n1. ...\n2. ...\n3. ...",
+        "concise"   to "Give exactly 3 numbered rephrasing options as concisely as possible. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
+        "natural"   to "Give exactly 3 numbered rephrasing options that sound completely natural and conversational. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
+        "discharge" to "Give exactly 3 numbered rephrasing options in discharge summary language. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
+        "tamil"     to "Give exactly 3 numbered Tamil translation options. Keep drug names in English. Format:\n1. ...\n2. ...\n3. ...",
+        "broadcast" to "Give exactly 3 numbered rephrasing options as WhatsApp broadcast from pediatric doctor to parents. Format:\n1. ...\n2. ...\n3. ..."
     )
 
     override fun onServiceConnected() {
@@ -67,6 +66,22 @@ class RephraseAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun parseOptions(response: String): List<String> {
+        val lines = response.trim().split("\n")
+        val options = mutableListOf<String>()
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.matches(Regex("^[123][\\.\\)].*"))) {
+                options.add(trimmed.substring(2).trim())
+            }
+        }
+        // fallback — split by newline if parsing fails
+        if (options.size < 2) {
+            return response.trim().split("\n").filter { it.isNotEmpty() }.take(3)
+        }
+        return options.take(3)
+    }
+
     private fun showBubble() {
         if (selectedText.isEmpty()) return
         dismissBubble()
@@ -85,14 +100,11 @@ class RephraseAccessibilityService : AccessibilityService() {
         params.y = 100
 
         val statusMsg = view.findViewById<TextView>(R.id.statusMsg)
-        val resultText = view.findViewById<TextView>(R.id.resultText)
-        val resultScroll = view.findViewById<ScrollView>(R.id.resultScroll)
-        val actionButtons = view.findViewById<View>(R.id.actionButtons)
-        val btnUse = view.findViewById<Button>(R.id.btn_use)
-        val btnClose = view.findViewById<Button>(R.id.btn_close)
+        val optionsLayout = view.findViewById<View>(R.id.optionsLayout)
+        val btnOption1 = view.findViewById<Button>(R.id.btn_option1)
+        val btnOption2 = view.findViewById<Button>(R.id.btn_option2)
+        val btnOption3 = view.findViewById<Button>(R.id.btn_option3)
         val btnCloseTop = view.findViewById<Button>(R.id.btn_close_top)
-
-        var lastResult = ""
 
         mapOf(
             R.id.btn_formal    to "formal",
@@ -101,25 +113,25 @@ class RephraseAccessibilityService : AccessibilityService() {
             R.id.btn_simple    to "simple",
             R.id.btn_empathy   to "empathy",
             R.id.btn_concise   to "concise",
-            R.id.btn_email     to "email",
+            R.id.btn_natural   to "natural",
             R.id.btn_discharge to "discharge",
             R.id.btn_tamil     to "tamil",
             R.id.btn_broadcast to "broadcast"
         ).forEach { (btnId, toneKey) ->
             view.findViewById<Button>(btnId).setOnClickListener {
                 statusMsg.text = "⏳ Rephrasing..."
-                resultScroll.visibility = View.GONE
-                actionButtons.visibility = View.GONE
+                optionsLayout.visibility = View.GONE
                 btnCloseTop.visibility = View.GONE
                 callApi(selectedText, tones[toneKey]!!) { result ->
                     handler.post {
                         if (result != null) {
-                            lastResult = result
-                            resultText.text = result
-                            resultScroll.visibility = View.VISIBLE
-                            actionButtons.visibility = View.VISIBLE
-                            btnCloseTop.visibility = View.GONE
-                            statusMsg.text = "✅ Ready — scroll to read"
+                            val options = parseOptions(result)
+                            btnOption1.text = "1. ${options.getOrElse(0) { "" }}"
+                            btnOption2.text = "2. ${options.getOrElse(1) { "" }}"
+                            btnOption3.text = "3. ${options.getOrElse(2) { "" }}"
+                            optionsLayout.visibility = View.VISIBLE
+                            btnCloseTop.visibility = View.VISIBLE
+                            statusMsg.text = "✅ Tap an option to use it"
                         } else {
                             statusMsg.text = "⚠ Failed. Try again."
                             btnCloseTop.visibility = View.VISIBLE
@@ -129,8 +141,17 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         }
 
-        btnUse.setOnClickListener { paste(lastResult); dismissBubble() }
-        btnClose.setOnClickListener { dismissBubble() }
+        listOf(btnOption1, btnOption2, btnOption3).forEach { btn ->
+            btn.setOnClickListener {
+                val text = btn.text.toString()
+                    .removePrefix("1. ")
+                    .removePrefix("2. ")
+                    .removePrefix("3. ")
+                paste(text)
+                dismissBubble()
+            }
+        }
+
         btnCloseTop.setOnClickListener { dismissBubble() }
 
         try { windowManager?.addView(view, params) } catch (e: Exception) { e.printStackTrace() }
@@ -149,7 +170,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         if (key.isEmpty()) { callback(null); return }
         val body = JSONObject().apply {
             put("model", "claude-sonnet-4-5-20250929")
-            put("max_tokens", 500)
+            put("max_tokens", 1000)
             put("system", prompt)
             put("messages", JSONArray().put(JSONObject().apply {
                 put("role", "user")
