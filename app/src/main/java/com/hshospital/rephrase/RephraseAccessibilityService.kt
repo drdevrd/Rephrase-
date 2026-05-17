@@ -174,7 +174,7 @@ class RephraseAccessibilityService : AccessibilityService() {
             put("system", prompt)
             put("messages", JSONArray().put(JSONObject().apply {
                 put("role", "user")
-                put("content", "$text Rephrase this sentence.")
+                put("content", "Rephrase this exact text as instructed: [$text]")
             }))
         }
         val req = Request.Builder()
