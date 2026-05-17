@@ -23,16 +23,16 @@ jobs:
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
 
-      - name: Create debug keystore
+      - name: Create persistent keystore
         run: |
           keytool -genkeypair -v \
-            -keystore app/debug.keystore \
-            -alias androiddebugkey \
+            -keystore app/hshospital.keystore \
+            -alias ${{ secrets.KEY_ALIAS }} \
             -keyalg RSA -keysize 2048 \
-            -validity 10000 \
-            -storepass android \
-            -keypass android \
-            -dname "CN=HS Hospital, OU=Android, O=HSHospital, L=Coimbatore, S=TN, C=IN"
+            -validity 36500 \
+            -storepass ${{ secrets.KEY_STORE_PASSWORD }} \
+            -keypass ${{ secrets.KEY_PASSWORD }} \
+            -dname "CN=HSHospital, OU=Android, O=HSHospital, L=Coimbatore, S=TN, C=IN"
 
       - name: Install Gradle
         run: |
@@ -40,8 +40,14 @@ jobs:
           unzip -q gradle-8.1-bin.zip
           echo "$PWD/gradle-8.1/bin" >> $GITHUB_PATH
 
-      - name: Build Debug APK
-        run: gradle assembleDebug --stacktrace
+      - name: Build Signed APK
+        run: |
+          gradle assembleDebug \
+            -Pandroid.injected.signing.store.file=$PWD/app/hshospital.keystore \
+            -Pandroid.injected.signing.store.password=${{ secrets.KEY_STORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} \
+            --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
