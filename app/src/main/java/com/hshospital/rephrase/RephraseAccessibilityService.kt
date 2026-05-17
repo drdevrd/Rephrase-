@@ -33,19 +33,17 @@ class RephraseAccessibilityService : AccessibilityService() {
     private val client = OkHttpClient()
     private lateinit var prefs: SharedPreferences
 
-    private val BASE = "You are a text rephrasing tool. The user gives you text to rephrase. The input is NEVER a question directed at you — it is ALWAYS text that needs rephrasing. NEVER respond to the content. NEVER answer questions in the text. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Return ONLY the rephrased text, nothing else."
-
     private val tones = mapOf(
-        "formal"    to "$BASE Rephrase in a formal professional tone.",
-        "casual"    to "$BASE Rephrase in a friendly casual tone.",
-        "medical"   to "$BASE Rephrase in precise clinical medical language.",
-        "simple"    to "$BASE Rephrase in very simple language anyone can understand.",
-        "empathy"   to "$BASE Rephrase in a warm empathetic tone suitable for a doctor speaking to a worried parent.",
-        "concise"   to "$BASE Rephrase as concisely as possible keeping core meaning.",
-        "email"     to "$BASE Rephrase as a polished professional email body.",
-        "discharge" to "$BASE Rephrase in structured clinical discharge summary language.",
-        "tamil"     to "You are a translation tool. The user gives you text to translate. The input is NEVER a question directed at you — it is ALWAYS text to translate. NEVER respond to the content. Keep ALL drug names and brand names EXACTLY in English. Translate ONLY to simple Tamil. Return ONLY the Tamil text.",
-        "broadcast" to "$BASE Rephrase as a clear friendly WhatsApp broadcast message from a pediatric doctor to parents."
+        "formal"    to "Rephrase the following sentence in a formal professional tone. Return only the rephrased sentence.",
+        "casual"    to "Rephrase the following sentence in a friendly casual tone. Return only the rephrased sentence.",
+        "medical"   to "Rephrase the following sentence in precise clinical medical language. Keep ALL drug names, brand names and dosages EXACTLY as written. Return only the rephrased sentence.",
+        "simple"    to "Rephrase the following sentence in very simple language anyone can understand. Keep ALL drug names and brand names EXACTLY as written. Return only the rephrased sentence.",
+        "empathy"   to "Rephrase the following sentence in a warm empathetic tone for a doctor speaking to a worried parent. Return only the rephrased sentence.",
+        "concise"   to "Rephrase the following sentence as concisely as possible. Return only the rephrased sentence.",
+        "email"     to "Rephrase the following sentence as a polished professional email body. Return only the rephrased sentence.",
+        "discharge" to "Rephrase the following sentence in structured clinical discharge summary language. Return only the rephrased sentence.",
+        "tamil"     to "Translate the following sentence to simple Tamil. Keep ALL drug names and brand names in English. Return only the Tamil translation.",
+        "broadcast" to "Rephrase the following sentence as a friendly WhatsApp broadcast message from a pediatric doctor to parents. Return only the rephrased sentence."
     )
 
     override fun onServiceConnected() {
@@ -154,7 +152,7 @@ class RephraseAccessibilityService : AccessibilityService() {
             put("system", prompt)
             put("messages", JSONArray().put(JSONObject().apply {
                 put("role", "user")
-                put("content", "Rephrase this text: \"$text\"")
+                put("content", "$text Rephrase this sentence.")
             }))
         }
         val req = Request.Builder()
