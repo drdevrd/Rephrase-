@@ -41,7 +41,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginBottom="8dp">
-        <Button android:id="@+id/btn_email" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="📧 Email" android:textSize="11sp" android:backgroundTint="#6e40c9" android:layout_marginEnd="5dp" android:textAllCaps="false"/>
+        <Button android:id="@+id/btn_natural" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="🌿 Natural" android:textSize="11sp" android:backgroundTint="#6e40c9" android:layout_marginEnd="5dp" android:textAllCaps="false"/>
         <Button android:id="@+id/btn_discharge" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="📋 Discharge" android:textSize="11sp" android:backgroundTint="#6e40c9" android:layout_marginEnd="5dp" android:textAllCaps="false"/>
         <Button android:id="@+id/btn_tamil" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="🌐 Tamil" android:textSize="11sp" android:backgroundTint="#6e40c9" android:textAllCaps="false"/>
     </LinearLayout>
@@ -69,55 +69,72 @@
         android:textColor="#58a6ff"
         android:layout_marginBottom="8dp"/>
 
-    <ScrollView
-        android:id="@+id/resultScroll"
+    <LinearLayout
+        android:id="@+id/optionsLayout"
         android:layout_width="match_parent"
-        android:layout_height="120dp"
-        android:visibility="gone"
-        android:background="#21262d"
-        android:padding="10dp"
-        android:layout_marginBottom="10dp">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
         <TextView
-            android:id="@+id/resultText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tap an option to use it:"
+            android:textSize="11sp"
+            android:textColor="#6e7681"
+            android:layout_marginBottom="6dp"/>
+
+        <Button
+            android:id="@+id/btn_option1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text=""
-            android:textSize="14sp"
-            android:textColor="#e6edf3"
-            android:lineSpacingExtra="4dp"/>
-    </ScrollView>
-
-    <LinearLayout
-        android:id="@+id/actionButtons"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:visibility="gone">
-        <Button
-            android:id="@+id/btn_use"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="52dp"
-            android:text="✅ Use This"
-            android:textSize="13sp"
-            android:backgroundTint="#238636"
+            android:textSize="12sp"
+            android:backgroundTint="#1a3a1a"
             android:textAllCaps="false"
-            android:layout_marginEnd="8dp"/>
+            android:gravity="start|center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:layout_marginBottom="6dp"/>
+
         <Button
-            android:id="@+id/btn_close"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="52dp"
-            android:text="✕ Close"
-            android:textSize="13sp"
-            android:backgroundTint="#6e7681"
-            android:textAllCaps="false"/>
+            android:id="@+id/btn_option2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="12sp"
+            android:backgroundTint="#1a3a1a"
+            android:textAllCaps="false"
+            android:gravity="start|center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:layout_marginBottom="6dp"/>
+
+        <Button
+            android:id="@+id/btn_option3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="12sp"
+            android:backgroundTint="#1a3a1a"
+            android:textAllCaps="false"
+            android:gravity="start|center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:layout_marginBottom="6dp"/>
+
     </LinearLayout>
 
     <Button
         android:id="@+id/btn_close_top"
         android:layout_width="match_parent"
-        android:layout_height="52dp"
+        android:layout_height="48dp"
         android:text="✕ Close"
         android:textSize="13sp"
         android:backgroundTint="#6e7681"
