@@ -120,7 +120,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         ).forEach { (btnId, toneKey) ->
             view.findViewById<Button>(btnId).setOnClickListener {
                 statusMsg.text = "⏳ Rephrasing..."
-                optionsLayout.visibility = View.GONE
+                view.findViewById<View>(R.id.optionsScroll).visibility = View.GONE
                 btnCloseTop.visibility = View.GONE
                 callApi(selectedText, tones[toneKey]!!) { result ->
                     handler.post {
@@ -129,7 +129,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                             btnOption1.text = "1. ${options.getOrElse(0) { "" }}"
                             btnOption2.text = "2. ${options.getOrElse(1) { "" }}"
                             btnOption3.text = "3. ${options.getOrElse(2) { "" }}"
-                            optionsLayout.visibility = View.VISIBLE
+                            view.findViewById<View>(R.id.optionsScroll).visibility = View.VISIBLE
                             btnCloseTop.visibility = View.VISIBLE
                             statusMsg.text = "✅ Tap an option to use it"
                         } else {
