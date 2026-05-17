@@ -58,26 +58,11 @@ class RephraseAccessibilityService : AccessibilityService() {
             val text = source.text?.toString() ?: return
             val start = source.textSelectionStart
             val end = source.textSelectionEnd
-
             if (start >= 0 && end > start && end <= text.length) {
-                // User selected specific text
                 selectedText = text.substring(start, end)
-            } else {
-                // No selection — use ALL text in field
-                selectedText = text
-            }
-            activeNode = source
-            handler.removeCallbacksAndMessages(null)
-            handler.postDelayed({ showBubble() }, 300)
-        }
-
-        // Also trigger on text changed — grab all text without needing selection
-        if (event?.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
-            val source = event.source ?: return
-            val text = source.text?.toString() ?: return
-            if (text.isNotEmpty()) {
-                selectedText = text
                 activeNode = source
+                handler.removeCallbacksAndMessages(null)
+                handler.postDelayed({ showBubble() }, 300)
             }
         }
     }
@@ -122,14 +107,11 @@ class RephraseAccessibilityService : AccessibilityService() {
             R.id.btn_broadcast to "broadcast"
         ).forEach { (btnId, toneKey) ->
             view.findViewById<Button>(btnId).setOnClickListener {
-                // Re-grab latest text from field at time of tap
-                val currentText = activeNode?.text?.toString() ?: selectedText
-                val finalText = if (currentText.isNotEmpty()) currentText else selectedText
                 statusMsg.text = "⏳ Rephrasing..."
                 resultScroll.visibility = View.GONE
                 actionButtons.visibility = View.GONE
                 btnCloseTop.visibility = View.GONE
-                callApi(finalText, tones[toneKey]!!) { result ->
+                callApi(selectedText, tones[toneKey]!!) { result ->
                     handler.post {
                         if (result != null) {
                             lastResult = result
@@ -166,7 +148,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         val key = prefs.getString("api_key", "") ?: ""
         if (key.isEmpty()) { callback(null); return }
         val body = JSONObject().apply {
-            put("model", "claude-sonnet-4-20250514")
+            put("model", "claude-sonnet-4-5-20251022")
             put("max_tokens", 500)
             put("system", prompt)
             put("messages", JSONArray().put(JSONObject().apply {
