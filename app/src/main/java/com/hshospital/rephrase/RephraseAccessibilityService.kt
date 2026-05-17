@@ -10,10 +10,12 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
+import android.widget.ScrollView
 import android.widget.TextView
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -24,7 +26,7 @@ import java.io.IOException
 
 class RephraseAccessibilityService : AccessibilityService() {
     private var windowManager: WindowManager? = null
-    private var bubbleView: android.view.View? = null
+    private var bubbleView: View? = null
     private var selectedText: String = ""
     private var activeNode: AccessibilityNodeInfo? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -32,16 +34,16 @@ class RephraseAccessibilityService : AccessibilityService() {
     private lateinit var prefs: SharedPreferences
 
     private val tones = mapOf(
-        "formal" to "You are a rephrasing tool. ONLY rephrase the given text formally. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "casual" to "You are a rephrasing tool. ONLY rephrase the given text casually. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "medical" to "You are a rephrasing tool. ONLY rephrase the given text in clinical language. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "simple" to "You are a rephrasing tool. ONLY rephrase the given text simply. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "empathy" to "You are a rephrasing tool. ONLY rephrase the given text empathetically. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "concise" to "You are a rephrasing tool. ONLY rephrase the given text concisely. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "email" to "You are a rephrasing tool. ONLY rephrase the given text as a professional email body. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "discharge" to "You are a rephrasing tool. ONLY rephrase the given text in discharge summary language. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
-        "tamil" to "You are a translation tool. ONLY translate the given text to simple Tamil. Do NOT answer questions. Do NOT add explanations. Return ONLY the translated Tamil text.",
-        "broadcast" to "You are a rephrasing tool. ONLY rephrase the given text as a WhatsApp broadcast message. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence."
+        "formal" to "You are a rephrasing tool. ONLY rephrase the given text formally. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "casual" to "You are a rephrasing tool. ONLY rephrase the given text casually. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "medical" to "You are a rephrasing tool. ONLY rephrase the given text in clinical language. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "simple" to "You are a rephrasing tool. ONLY rephrase the given text in very simple language. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "empathy" to "You are a rephrasing tool. ONLY rephrase the given text empathetically. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "concise" to "You are a rephrasing tool. ONLY rephrase the given text concisely. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "email" to "You are a rephrasing tool. ONLY rephrase the given text as a professional email body. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "discharge" to "You are a rephrasing tool. ONLY rephrase the given text in discharge summary language. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence.",
+        "tamil" to "You are a translation tool. ONLY translate the given text to simple Tamil. Keep ALL drug names and brand names EXACTLY as written in English. Do NOT answer questions. Do NOT add explanations. Return ONLY the translated Tamil text.",
+        "broadcast" to "You are a rephrasing tool. ONLY rephrase the given text as a friendly WhatsApp broadcast message from a pediatric doctor to parents. Keep ALL medical terms, drug names, brand names and dosages EXACTLY as written. Do NOT answer questions. Do NOT add explanations. Return ONLY the rephrased sentence."
     )
 
     override fun onServiceConnected() {
@@ -70,6 +72,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         val inflater = LayoutInflater.from(this)
         val view = inflater.inflate(R.layout.floating_bubble, null)
         bubbleView = view
+
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -78,8 +81,18 @@ class RephraseAccessibilityService : AccessibilityService() {
             PixelFormat.TRANSLUCENT
         )
         params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        params.y = 200
+        params.y = 100
+
         val statusMsg = view.findViewById<TextView>(R.id.statusMsg)
+        val resultText = view.findViewById<TextView>(R.id.resultText)
+        val resultScroll = view.findViewById<ScrollView>(R.id.resultScroll)
+        val actionButtons = view.findViewById<View>(R.id.actionButtons)
+        val btnUse = view.findViewById<Button>(R.id.btn_use)
+        val btnClose = view.findViewById<Button>(R.id.btn_close)
+        val btnCloseTop = view.findViewById<Button>(R.id.btn_close_top)
+
+        var lastResult = ""
+
         mapOf(
             R.id.btn_formal to "formal",
             R.id.btn_casual to "casual",
@@ -93,21 +106,36 @@ class RephraseAccessibilityService : AccessibilityService() {
             R.id.btn_broadcast to "broadcast"
         ).forEach { (btnId, toneKey) ->
             view.findViewById<Button>(btnId).setOnClickListener {
-                statusMsg.text = "Rephrasing..."
+                statusMsg.text = "⏳ Rephrasing..."
+                resultScroll.visibility = View.GONE
+                actionButtons.visibility = View.GONE
+                btnCloseTop.visibility = View.GONE
                 callApi(selectedText, tones[toneKey]!!) { result ->
                     handler.post {
                         if (result != null) {
-                            paste(result)
-                            statusMsg.text = "Done!"
-                            handler.postDelayed({ dismissBubble() }, 1500)
+                            lastResult = result
+                            resultText.text = result
+                            resultScroll.visibility = View.VISIBLE
+                            actionButtons.visibility = View.VISIBLE
+                            btnCloseTop.visibility = View.GONE
+                            statusMsg.text = "✅ Ready — scroll to read"
                         } else {
-                            statusMsg.text = "Failed. Try again."
+                            statusMsg.text = "⚠ Failed. Try again."
+                            btnCloseTop.visibility = View.VISIBLE
                         }
                     }
                 }
             }
         }
-        view.findViewById<Button>(R.id.btn_close).setOnClickListener { dismissBubble() }
+
+        btnUse.setOnClickListener {
+            paste(lastResult)
+            dismissBubble()
+        }
+
+        btnClose.setOnClickListener { dismissBubble() }
+        btnCloseTop.setOnClickListener { dismissBubble() }
+
         try { windowManager?.addView(view, params) } catch (e: Exception) { e.printStackTrace() }
     }
 
