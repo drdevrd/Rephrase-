@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
+    android:layout_width="320dp"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/bubble_bg"
@@ -14,45 +14,51 @@
         android:textSize="12sp"
         android:textStyle="bold"
         android:textColor="#58a6ff"
-        android:layout_marginBottom="10dp"/>
+        android:layout_marginBottom="8dp"/>
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="6dp">
+        <Button android:id="@+id/btn_formal" android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:text="🎩Formal" android:textSize="10sp" android:backgroundTint="#1f6feb" android:layout_marginEnd="4dp" android:padding="2dp"/>
+        <Button android:id="@+id/btn_casual" android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:text="😊Casual" android:textSize="10sp" android:backgroundTint="#1f6feb" android:layout_marginEnd="4dp" android:padding="2dp"/>
+        <Button android:id="@+id/btn_medical" android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:text="🩺Medical" android:textSize="10sp" android:backgroundTint="#1f6feb" android:padding="2dp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="6dp">
+        <Button android:id="@+id/btn_simple" android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:text="👶Simple" android:textSize="10sp" android:backgroundTint="#238636" android:layout_marginEnd="4dp" android:padding="2dp"/>
+        <Button android:id="@+id/btn_empathy" android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:text="💙Empathy" android:textSize="10sp" android:backgroundTint="#238636" android:layout_marginEnd="4dp" android:padding="2dp"/>
+        <Button android:id="@+id/btn_concise" android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:text="⚡Concise" android:textSize="10sp" android:backgroundTint="#238636" android:padding="2dp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="6dp">
+        <Button android:id="@+id/btn_email" android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:text="📧Email" android:textSize="10sp" android:backgroundTint="#6e40c9" android:layout_marginEnd="4dp" android:padding="2dp"/>
+        <Button android:id="@+id/btn_discharge" android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:text="📋Discharge" android:textSize="10sp" android:backgroundTint="#6e40c9" android:layout_marginEnd="4dp" android:padding="2dp"/>
+        <Button android:id="@+id/btn_tamil" android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:text="🌐Tamil" android:textSize="10sp" android:backgroundTint="#6e40c9" android:padding="2dp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginBottom="8dp">
-        <Button android:id="@+id/btn_formal" android:layout_width="wrap_content" android:layout_height="36dp" android:text="🎩 Formal" android:textSize="11sp" android:backgroundTint="#1f6feb" android:layout_marginEnd="6dp" android:paddingStart="10dp" android:paddingEnd="10dp"/>
-        <Button android:id="@+id/btn_casual" android:layout_width="wrap_content" android:layout_height="36dp" android:text="😊 Casual" android:textSize="11sp" android:backgroundTint="#1f6feb" android:layout_marginEnd="6dp" android:paddingStart="10dp" android:paddingEnd="10dp"/>
-        <Button android:id="@+id/btn_medical" android:layout_width="wrap_content" android:layout_height="36dp" android:text="🩺 Medical" android:textSize="11sp" android:backgroundTint="#1f6feb" android:paddingStart="10dp" android:paddingEnd="10dp"/>
+        <Button android:id="@+id/btn_broadcast" android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:text="📢Broadcast" android:textSize="10sp" android:backgroundTint="#b08800" android:padding="2dp"/>
     </LinearLayout>
 
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
-        <Button android:id="@+id/btn_simple" android:layout_width="wrap_content" android:layout_height="36dp" android:text="👶 Simple" android:textSize="11sp" android:backgroundTint="#238636" android:layout_marginEnd="6dp" android:paddingStart="10dp" android:paddingEnd="10dp"/>
-        <Button android:id="@+id/btn_empathy" android:layout_width="wrap_content" android:layout_height="36dp" android:text="💙 Empathy" android:textSize="11sp" android:backgroundTint="#238636" android:layout_marginEnd="6dp" android:paddingStart="10dp" android:paddingEnd="10dp"/>
-        <Button android:id="@+id/btn_concise" android:layout_width="wrap_content" android:layout_height="36dp" android:text="⚡ Concise" android:textSize="11sp" android:backgroundTint="#238636" android:paddingStart="10dp" android:paddingEnd="10dp"/>
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
-        <Button android:id="@+id/btn_email" android:layout_width="wrap_content" android:layout_height="36dp" android:text="📧 Email" android:textSize="11sp" android:backgroundTint="#6e40c9" android:layout_marginEnd="6dp" android:paddingStart="10dp" android:paddingEnd="10dp"/>
-        <Button android:id="@+id/btn_discharge" android:layout_width="wrap_content" android:layout_height="36dp" android:text="📋 Discharge" android:textSize="11sp" android:backgroundTint="#6e40c9" android:layout_marginEnd="6dp" android:paddingStart="10dp" android:paddingEnd="10dp"/>
-        <Button android:id="@+id/btn_tamil" android:layout_width="wrap_content" android:layout_height="36dp" android:text="🌐 Tamil" android:textSize="11sp" android:backgroundTint="#6e40c9" android:paddingStart="10dp" android:paddingEnd="10dp"/>
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-        <Button android:id="@+id/btn_broadcast" android:layout_width="wrap_content" android:layout_height="36dp" android:text="📢 Broadcast" android:textSize="11sp" android:backgroundTint="#b08800" android:layout_marginEnd="6dp" android:paddingStart="10dp" android:paddingEnd="10dp"/>
-        <Button android:id="@+id/btn_close" android:layout_width="wrap_content" android:layout_height="36dp" android:text="✕ Close" android:textSize="11sp" android:backgroundTint="#6e7681" android:paddingStart="10dp" android:paddingEnd="10dp"/>
-    </LinearLayout>
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#30363d"
+        android:layout_marginBottom="8dp"/>
 
     <TextView
         android:id="@+id/statusMsg"
@@ -60,7 +66,59 @@
         android:layout_height="wrap_content"
         android:text=""
         android:textSize="11sp"
-        android:textColor="#3fb950"
-        android:layout_marginTop="8dp"/>
+        android:textColor="#58a6ff"
+        android:layout_marginBottom="6dp"/>
+
+    <ScrollView
+        android:id="@+id/resultScroll"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:visibility="gone"
+        android:background="#21262d"
+        android:padding="8dp"
+        android:layout_marginBottom="8dp">
+        <TextView
+            android:id="@+id/resultText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="13sp"
+            android:textColor="#e6edf3"
+            android:lineSpacingExtra="4dp"/>
+    </ScrollView>
+
+    <LinearLayout
+        android:id="@+id/actionButtons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="gone">
+        <Button
+            android:id="@+id/btn_use"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="36dp"
+            android:text="✅ Use This"
+            android:textSize="12sp"
+            android:backgroundTint="#238636"
+            android:layout_marginEnd="6dp"/>
+        <Button
+            android:id="@+id/btn_close"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="36dp"
+            android:text="✕ Close"
+            android:textSize="12sp"
+            android:backgroundTint="#6e7681"/>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_close_top"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:text="✕ Close"
+        android:textSize="12sp"
+        android:backgroundTint="#6e7681"
+        android:visibility="visible"/>
 
 </LinearLayout>
