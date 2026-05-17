@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="380dp"
+    android:layout_width="360dp"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/bubble_bg"
@@ -21,9 +21,9 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginBottom="8dp">
-        <Button android:id="@+id/btn_formal" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:text="🎩 Formal" android:textSize="12sp" android:backgroundTint="#1f6feb" android:layout_marginEnd="6dp"/>
-        <Button android:id="@+id/btn_casual" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:text="😊 Casual" android:textSize="12sp" android:backgroundTint="#1f6feb" android:layout_marginEnd="6dp"/>
-        <Button android:id="@+id/btn_medical" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:text="🩺 Medical" android:textSize="12sp" android:backgroundTint="#1f6feb"/>
+        <Button android:id="@+id/btn_formal" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="🎩 Formal" android:textSize="11sp" android:backgroundTint="#1f6feb" android:layout_marginEnd="5dp" android:textAllCaps="false"/>
+        <Button android:id="@+id/btn_casual" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="😊 Casual" android:textSize="11sp" android:backgroundTint="#1f6feb" android:layout_marginEnd="5dp" android:textAllCaps="false"/>
+        <Button android:id="@+id/btn_medical" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="🩺 Medical" android:textSize="11sp" android:backgroundTint="#1f6feb" android:textAllCaps="false"/>
     </LinearLayout>
 
     <LinearLayout
@@ -31,9 +31,9 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginBottom="8dp">
-        <Button android:id="@+id/btn_simple" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:text="👶 Simple" android:textSize="12sp" android:backgroundTint="#238636" android:layout_marginEnd="6dp"/>
-        <Button android:id="@+id/btn_empathy" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:text="💙 Empathy" android:textSize="12sp" android:backgroundTint="#238636" android:layout_marginEnd="6dp"/>
-        <Button android:id="@+id/btn_concise" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:text="⚡ Concise" android:textSize="12sp" android:backgroundTint="#238636"/>
+        <Button android:id="@+id/btn_simple" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="👶 Simple" android:textSize="11sp" android:backgroundTint="#238636" android:layout_marginEnd="5dp" android:textAllCaps="false"/>
+        <Button android:id="@+id/btn_empathy" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="💙 Empathy" android:textSize="11sp" android:backgroundTint="#238636" android:layout_marginEnd="5dp" android:textAllCaps="false"/>
+        <Button android:id="@+id/btn_concise" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="⚡ Concise" android:textSize="11sp" android:backgroundTint="#238636" android:textAllCaps="false"/>
     </LinearLayout>
 
     <LinearLayout
@@ -41,9 +41,9 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginBottom="8dp">
-        <Button android:id="@+id/btn_email" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:text="📧 Email" android:textSize="12sp" android:backgroundTint="#6e40c9" android:layout_marginEnd="6dp"/>
-        <Button android:id="@+id/btn_discharge" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:text="📋 Discharge" android:textSize="12sp" android:backgroundTint="#6e40c9" android:layout_marginEnd="6dp"/>
-        <Button android:id="@+id/btn_tamil" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:text="🌐 Tamil" android:textSize="12sp" android:backgroundTint="#6e40c9"/>
+        <Button android:id="@+id/btn_email" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="📧 Email" android:textSize="11sp" android:backgroundTint="#6e40c9" android:layout_marginEnd="5dp" android:textAllCaps="false"/>
+        <Button android:id="@+id/btn_discharge" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="📋 Discharge" android:textSize="11sp" android:backgroundTint="#6e40c9" android:layout_marginEnd="5dp" android:textAllCaps="false"/>
+        <Button android:id="@+id/btn_tamil" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="🌐 Tamil" android:textSize="11sp" android:backgroundTint="#6e40c9" android:textAllCaps="false"/>
     </LinearLayout>
 
     <LinearLayout
@@ -51,7 +51,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginBottom="10dp">
-        <Button android:id="@+id/btn_broadcast" android:layout_width="match_parent" android:layout_height="48dp" android:text="📢 Broadcast" android:textSize="12sp" android:backgroundTint="#b08800"/>
+        <Button android:id="@+id/btn_broadcast" android:layout_width="match_parent" android:layout_height="52dp" android:text="📢 Broadcast" android:textSize="12sp" android:backgroundTint="#b08800" android:textAllCaps="false"/>
     </LinearLayout>
 
     <View
@@ -97,28 +97,31 @@
             android:id="@+id/btn_use"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="48dp"
+            android:layout_height="52dp"
             android:text="✅ Use This"
             android:textSize="13sp"
             android:backgroundTint="#238636"
+            android:textAllCaps="false"
             android:layout_marginEnd="8dp"/>
         <Button
             android:id="@+id/btn_close"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="48dp"
+            android:layout_height="52dp"
             android:text="✕ Close"
             android:textSize="13sp"
-            android:backgroundTint="#6e7681"/>
+            android:backgroundTint="#6e7681"
+            android:textAllCaps="false"/>
     </LinearLayout>
 
     <Button
         android:id="@+id/btn_close_top"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="52dp"
         android:text="✕ Close"
         android:textSize="13sp"
         android:backgroundTint="#6e7681"
+        android:textAllCaps="false"
         android:visibility="visible"/>
 
 </LinearLayout>
