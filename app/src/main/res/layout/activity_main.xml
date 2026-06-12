@@ -8,38 +8,295 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="24dp">
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="RePhrase - HS Hospital"
-            android:textSize="22sp"
+            android:text="✨ RePhrase"
+            android:textSize="24sp"
+            android:textStyle="bold"
             android:textColor="#f0f6fc"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="4dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="HS Hospital · AI Rephraser"
+            android:textSize="12sp"
+            android:textColor="#58a6ff"
+            android:layout_marginBottom="24dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Claude API Key"
+            android:textSize="12sp"
+            android:textColor="#6e7681"
+            android:layout_marginBottom="8dp"/>
+
         <EditText
             android:id="@+id/apiKeyInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Paste API key here"
+            android:hint="sk-ant-api03-..."
             android:inputType="textPassword"
             android:textColor="#e6edf3"
+            android:textColorHint="#484f58"
+            android:background="@drawable/input_bg"
+            android:padding="14dp"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
             android:layout_marginBottom="12dp"/>
+
         <Button
             android:id="@+id/saveKeyBtn"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="52dp"
             android:text="Save API Key"
-            android:layout_marginBottom="12dp"/>
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:backgroundTint="#1f6feb"
+            android:textAllCaps="false"
+            android:layout_marginBottom="8dp"/>
+
         <TextView
             android:id="@+id/statusText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text=""
+            android:textSize="13sp"
             android:textColor="#3fb950"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="24dp"/>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#21262d"
+            android:layout_marginBottom="24dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Enable Accessibility Service"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#c9d1d9"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Settings → Accessibility → RePhrase → Turn ON"
+            android:textSize="12sp"
+            android:textColor="#6e7681"
+            android:layout_marginBottom="12dp"/>
+
         <Button
             android:id="@+id/openAccessibilityBtn"
             android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="Open Accessibility Settings"
+            android:textSize="14sp"
+            android:backgroundTint="#21262d"
+            android:textAllCaps="false"
+            android:layout_marginBottom="24dp"/>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#21262d"
+            android:layout_marginBottom="24dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Open Accessibility Settings"/>
+            android:text="⭐ Custom Tones"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#c9d1d9"
+            android:layout_marginBottom="4dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Add your own rephrasing tones. They appear in the bubble."
+            android:textSize="12sp"
+            android:textColor="#6e7681"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Custom Tone 1 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Custom Tone 1"
+            android:textSize="12sp"
+            android:textColor="#58a6ff"
+            android:layout_marginBottom="6dp"/>
+        <EditText
+            android:id="@+id/customName1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Tone name (e.g. Friendly)"
+            android:textColor="#e6edf3"
+            android:textColorHint="#484f58"
+            android:background="@drawable/input_bg"
+            android:padding="12dp"
+            android:textSize="13sp"
+            android:layout_marginBottom="6dp"/>
+        <EditText
+            android:id="@+id/customPrompt1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Prompt (e.g. Rephrase in a friendly tone...)"
+            android:textColor="#e6edf3"
+            android:textColorHint="#484f58"
+            android:background="@drawable/input_bg"
+            android:padding="12dp"
+            android:textSize="13sp"
+            android:inputType="textMultiLine"
+            android:minLines="2"
+            android:layout_marginBottom="6dp"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+            <Button
+                android:id="@+id/saveCustom1"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="44dp"
+                android:text="💾 Save"
+                android:textSize="13sp"
+                android:backgroundTint="#238636"
+                android:textAllCaps="false"
+                android:layout_marginEnd="8dp"/>
+            <Button
+                android:id="@+id/deleteCustom1"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="44dp"
+                android:text="🗑 Delete"
+                android:textSize="13sp"
+                android:backgroundTint="#b62324"
+                android:textAllCaps="false"/>
+        </LinearLayout>
+
+        <!-- Custom Tone 2 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Custom Tone 2"
+            android:textSize="12sp"
+            android:textColor="#58a6ff"
+            android:layout_marginBottom="6dp"/>
+        <EditText
+            android:id="@+id/customName2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Tone name"
+            android:textColor="#e6edf3"
+            android:textColorHint="#484f58"
+            android:background="@drawable/input_bg"
+            android:padding="12dp"
+            android:textSize="13sp"
+            android:layout_marginBottom="6dp"/>
+        <EditText
+            android:id="@+id/customPrompt2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Prompt"
+            android:textColor="#e6edf3"
+            android:textColorHint="#484f58"
+            android:background="@drawable/input_bg"
+            android:padding="12dp"
+            android:textSize="13sp"
+            android:inputType="textMultiLine"
+            android:minLines="2"
+            android:layout_marginBottom="6dp"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+            <Button
+                android:id="@+id/saveCustom2"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="44dp"
+                android:text="💾 Save"
+                android:textSize="13sp"
+                android:backgroundTint="#238636"
+                android:textAllCaps="false"
+                android:layout_marginEnd="8dp"/>
+            <Button
+                android:id="@+id/deleteCustom2"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="44dp"
+                android:text="🗑 Delete"
+                android:textSize="13sp"
+                android:backgroundTint="#b62324"
+                android:textAllCaps="false"/>
+        </LinearLayout>
+
+        <!-- Custom Tone 3 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Custom Tone 3"
+            android:textSize="12sp"
+            android:textColor="#58a6ff"
+            android:layout_marginBottom="6dp"/>
+        <EditText
+            android:id="@+id/customName3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Tone name"
+            android:textColor="#e6edf3"
+            android:textColorHint="#484f58"
+            android:background="@drawable/input_bg"
+            android:padding="12dp"
+            android:textSize="13sp"
+            android:layout_marginBottom="6dp"/>
+        <EditText
+            android:id="@+id/customPrompt3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Prompt"
+            android:textColor="#e6edf3"
+            android:textColorHint="#484f58"
+            android:background="@drawable/input_bg"
+            android:padding="12dp"
+            android:textSize="13sp"
+            android:inputType="textMultiLine"
+            android:minLines="2"
+            android:layout_marginBottom="6dp"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="24dp">
+            <Button
+                android:id="@+id/saveCustom3"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="44dp"
+                android:text="💾 Save"
+                android:textSize="13sp"
+                android:backgroundTint="#238636"
+                android:textAllCaps="false"
+                android:layout_marginEnd="8dp"/>
+            <Button
+                android:id="@+id/deleteCustom3"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="44dp"
+                android:text="🗑 Delete"
+                android:textSize="13sp"
+                android:backgroundTint="#b62324"
+                android:textAllCaps="false"/>
+        </LinearLayout>
+
     </LinearLayout>
 </ScrollView>
