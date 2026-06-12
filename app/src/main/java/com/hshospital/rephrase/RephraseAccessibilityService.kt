@@ -15,6 +15,7 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -75,7 +76,6 @@ class RephraseAccessibilityService : AccessibilityService() {
                 options.add(trimmed.substring(2).trim())
             }
         }
-        // fallback — split by newline if parsing fails
         if (options.size < 2) {
             return response.trim().split("\n").filter { it.isNotEmpty() }.take(3)
         }
@@ -100,12 +100,56 @@ class RephraseAccessibilityService : AccessibilityService() {
         params.y = 100
 
         val statusMsg = view.findViewById<TextView>(R.id.statusMsg)
+        val optionsScroll = view.findViewById<View>(R.id.optionsScroll)
         val optionsLayout = view.findViewById<View>(R.id.optionsLayout)
         val btnOption1 = view.findViewById<Button>(R.id.btn_option1)
         val btnOption2 = view.findViewById<Button>(R.id.btn_option2)
         val btnOption3 = view.findViewById<Button>(R.id.btn_option3)
         val btnCloseTop = view.findViewById<Button>(R.id.btn_close_top)
+        val customTonesRow = view.findViewById<LinearLayout>(R.id.customTonesRow)
+        val btnCustom1 = view.findViewById<Button>(R.id.btn_custom1)
+        val btnCustom2 = view.findViewById<Button>(R.id.btn_custom2)
+        val btnCustom3 = view.findViewById<Button>(R.id.btn_custom3)
 
+        // Load custom tones
+        val customName1 = prefs.getString("custom_name_1", "") ?: ""
+        val customPrompt1 = prefs.getString("custom_prompt_1", "") ?: ""
+        val customName2 = prefs.getString("custom_name_2", "") ?: ""
+        val customPrompt2 = prefs.getString("custom_prompt_2", "") ?: ""
+        val customName3 = prefs.getString("custom_name_3", "") ?: ""
+        val customPrompt3 = prefs.getString("custom_prompt_3", "") ?: ""
+
+        // Show custom tones row only if at least one is set
+        if (customName1.isNotEmpty() || customName2.isNotEmpty() || customName3.isNotEmpty()) {
+            customTonesRow.visibility = View.VISIBLE
+            if (customName1.isNotEmpty()) btnCustom1.text = "⭐ $customName1" else btnCustom1.visibility = View.GONE
+            if (customName2.isNotEmpty()) btnCustom2.text = "⭐ $customName2" else btnCustom2.visibility = View.GONE
+            if (customName3.isNotEmpty()) btnCustom3.text = "⭐ $customName3" else btnCustom3.visibility = View.GONE
+        }
+
+        fun rephrase(prompt: String) {
+            statusMsg.text = "⏳ Rephrasing..."
+            optionsScroll.visibility = View.GONE
+            btnCloseTop.visibility = View.GONE
+            callApi(selectedText, prompt) { result ->
+                handler.post {
+                    if (result != null) {
+                        val options = parseOptions(result)
+                        btnOption1.text = "1. ${options.getOrElse(0) { "" }}"
+                        btnOption2.text = "2. ${options.getOrElse(1) { "" }}"
+                        btnOption3.text = "3. ${options.getOrElse(2) { "" }}"
+                        optionsScroll.visibility = View.VISIBLE
+                        btnCloseTop.visibility = View.VISIBLE
+                        statusMsg.text = "✅ Tap an option to use it"
+                    } else {
+                        statusMsg.text = "⚠ Failed. Try again."
+                        btnCloseTop.visibility = View.VISIBLE
+                    }
+                }
+            }
+        }
+
+        // Default tones
         mapOf(
             R.id.btn_formal    to "formal",
             R.id.btn_casual    to "casual",
@@ -119,28 +163,22 @@ class RephraseAccessibilityService : AccessibilityService() {
             R.id.btn_broadcast to "broadcast"
         ).forEach { (btnId, toneKey) ->
             view.findViewById<Button>(btnId).setOnClickListener {
-                statusMsg.text = "⏳ Rephrasing..."
-                view.findViewById<View>(R.id.optionsScroll).visibility = View.GONE
-                btnCloseTop.visibility = View.GONE
-                callApi(selectedText, tones[toneKey]!!) { result ->
-                    handler.post {
-                        if (result != null) {
-                            val options = parseOptions(result)
-                            btnOption1.text = "1. ${options.getOrElse(0) { "" }}"
-                            btnOption2.text = "2. ${options.getOrElse(1) { "" }}"
-                            btnOption3.text = "3. ${options.getOrElse(2) { "" }}"
-                            view.findViewById<View>(R.id.optionsScroll).visibility = View.VISIBLE
-                            btnCloseTop.visibility = View.VISIBLE
-                            statusMsg.text = "✅ Tap an option to use it"
-                        } else {
-                            statusMsg.text = "⚠ Failed. Try again."
-                            btnCloseTop.visibility = View.VISIBLE
-                        }
-                    }
-                }
+                rephrase(tones[toneKey]!!)
             }
         }
 
+        // Custom tones
+        if (customPrompt1.isNotEmpty()) btnCustom1.setOnClickListener {
+            rephrase("Give exactly 3 numbered rephrasing options. $customPrompt1 Format:\n1. ...\n2. ...\n3. ...")
+        }
+        if (customPrompt2.isNotEmpty()) btnCustom2.setOnClickListener {
+            rephrase("Give exactly 3 numbered rephrasing options. $customPrompt2 Format:\n1. ...\n2. ...\n3. ...")
+        }
+        if (customPrompt3.isNotEmpty()) btnCustom3.setOnClickListener {
+            rephrase("Give exactly 3 numbered rephrasing options. $customPrompt3 Format:\n1. ...\n2. ...\n3. ...")
+        }
+
+        // Option buttons paste on tap
         listOf(btnOption1, btnOption2, btnOption3).forEach { btn ->
             btn.setOnClickListener {
                 val text = btn.text.toString()
