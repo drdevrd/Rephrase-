@@ -50,8 +50,21 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="10dp">
+        android:layout_marginBottom="8dp">
         <Button android:id="@+id/btn_broadcast" android:layout_width="match_parent" android:layout_height="52dp" android:text="📢 Broadcast" android:textSize="12sp" android:backgroundTint="#b08800" android:textAllCaps="false"/>
+    </LinearLayout>
+
+    <!-- Custom Tones Row -->
+    <LinearLayout
+        android:id="@+id/customTonesRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone">
+        <Button android:id="@+id/btn_custom1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="⭐ Custom 1" android:textSize="11sp" android:backgroundTint="#c05800" android:layout_marginEnd="5dp" android:textAllCaps="false"/>
+        <Button android:id="@+id/btn_custom2" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="⭐ Custom 2" android:textSize="11sp" android:backgroundTint="#c05800" android:layout_marginEnd="5dp" android:textAllCaps="false"/>
+        <Button android:id="@+id/btn_custom3" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:text="⭐ Custom 3" android:textSize="11sp" android:backgroundTint="#c05800" android:textAllCaps="false"/>
     </LinearLayout>
 
     <View
@@ -70,74 +83,74 @@
         android:layout_marginBottom="8dp"/>
 
     <ScrollView
-    android:layout_width="match_parent"
-    android:layout_height="300dp"
-    android:visibility="gone"
-    android:id="@+id/optionsScroll">
-<LinearLayout
-    android:id="@+id/optionsLayout"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Tap an option to use it:"
-            android:textSize="11sp"
-            android:textColor="#6e7681"
-            android:layout_marginBottom="6dp"/>
-
-        <Button
-            android:id="@+id/btn_option1"
+        android:id="@+id/optionsScroll"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:visibility="gone">
+        <LinearLayout
+            android:id="@+id/optionsLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text=""
-            android:textSize="12sp"
-            android:textColor="#ffffff"
-            android:backgroundTint="#2ea043"
-            android:textAllCaps="false"
-            android:gravity="start|center_vertical"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp"
-            android:layout_marginBottom="6dp"/>
+            android:orientation="vertical">
 
-        <Button
-            android:id="@+id/btn_option2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text=""
-            android:textSize="12sp"
-            android:textColor="#ffffff"
-            android:backgroundTint="#2ea043"
-            android:textAllCaps="false"
-            android:gravity="start|center_vertical"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp"
-            android:layout_marginBottom="6dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tap an option to use it:"
+                android:textSize="11sp"
+                android:textColor="#6e7681"
+                android:layout_marginBottom="6dp"/>
 
-        <Button
-            android:id="@+id/btn_option3"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text=""
-            android:textSize="12sp"
-            android:textColor="#ffffff"
-            android:backgroundTint="#2ea043"
-            android:textAllCaps="false"
-            android:gravity="start|center_vertical"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp"
-            android:layout_marginBottom="6dp"/>
+            <Button
+                android:id="@+id/btn_option1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:textColor="#ffffff"
+                android:backgroundTint="#2ea043"
+                android:textAllCaps="false"
+                android:gravity="start|center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:layout_marginBottom="6dp"/>
 
-    </LinearLayout>
-</ScrollView>
+            <Button
+                android:id="@+id/btn_option2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:textColor="#ffffff"
+                android:backgroundTint="#2ea043"
+                android:textAllCaps="false"
+                android:gravity="start|center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:layout_marginBottom="6dp"/>
+
+            <Button
+                android:id="@+id/btn_option3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:textColor="#ffffff"
+                android:backgroundTint="#2ea043"
+                android:textAllCaps="false"
+                android:gravity="start|center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:layout_marginBottom="6dp"/>
+
+        </LinearLayout>
+    </ScrollView>
 
     <Button
         android:id="@+id/btn_close_top"
