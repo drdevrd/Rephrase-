@@ -11,23 +11,26 @@ android {
         applicationId "com.hshospital.rephrase"
         minSdk 26
         targetSdk 34
-        versionCode 8
-        versionName "1.8"
+        versionCode 11
+        versionName "2.1"
     }
 
     signingConfigs {
-        debug {
-            storeFile file("debug.keystore")
-            storePassword "android"
-            keyAlias "androiddebugkey"
-            keyPassword "android"
+        release {
+            storeFile file("hshospital.keystore")
+            storePassword "android123"
+            keyAlias "hshospital"
+            keyPassword "android123"
         }
     }
 
     buildTypes {
         debug {
             minifyEnabled false
-            signingConfig signingConfigs.debug
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
         }
     }
 
