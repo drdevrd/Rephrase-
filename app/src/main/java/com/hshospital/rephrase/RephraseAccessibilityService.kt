@@ -33,6 +33,35 @@ class RephraseAccessibilityService : AccessibilityService() {
     private val client = OkHttpClient()
     private lateinit var prefs: SharedPreferences
 
+    private val blockedApps = setOf(
+        "com.csam.icici.bank.imobile",
+        "com.axis.mobile",
+        "com.sbi.lotusintouch",
+        "net.one97.paytm",
+        "com.hdfc.wallet",
+        "com.kotak.mahindra.kotak_mahindra",
+        "com.rbl.rblmobilebanking",
+        "com.indusind.mobile",
+        "com.idbi.mpassbook",
+        "com.sc.bmw.in",
+        "com.google.android.apps.nbu.paisa.user",
+        "com.phonepe.app",
+        "in.amazon.mShop.android.shopping",
+        "com.mobikwik_new",
+        "com.freecharge.android",
+        "com.airtel.money",
+        "com.jio.jiopay",
+        "com.bhim.axispay",
+        "com.dreamplug.androidapp",
+        "in.org.npci.upiapp",
+        "com.whatsapp.w4b",
+        "com.sbi.SBIFreedomPlus",
+        "com.yesbank",
+        "com.snapwork.hdfc",
+        "com.upi.axispay",
+        "com.amazon.mShop.android.shopping"
+    )
+
     private val tones = mapOf(
         "formal"    to "Give exactly 3 numbered rephrasing options in formal professional tone. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
         "casual"    to "Give exactly 3 numbered rephrasing options in friendly casual tone. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
@@ -53,6 +82,9 @@ class RephraseAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        val pkg = event?.packageName?.toString() ?: ""
+        if (blockedApps.contains(pkg)) return
+
         if (event?.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED) {
             val source = event.source ?: return
             val text = source.text?.toString() ?: return
@@ -101,7 +133,6 @@ class RephraseAccessibilityService : AccessibilityService() {
 
         val statusMsg = view.findViewById<TextView>(R.id.statusMsg)
         val optionsScroll = view.findViewById<View>(R.id.optionsScroll)
-        val optionsLayout = view.findViewById<View>(R.id.optionsLayout)
         val btnOption1 = view.findViewById<Button>(R.id.btn_option1)
         val btnOption2 = view.findViewById<Button>(R.id.btn_option2)
         val btnOption3 = view.findViewById<Button>(R.id.btn_option3)
@@ -111,7 +142,6 @@ class RephraseAccessibilityService : AccessibilityService() {
         val btnCustom2 = view.findViewById<Button>(R.id.btn_custom2)
         val btnCustom3 = view.findViewById<Button>(R.id.btn_custom3)
 
-        // Load custom tones
         val customName1 = prefs.getString("custom_name_1", "") ?: ""
         val customPrompt1 = prefs.getString("custom_prompt_1", "") ?: ""
         val customName2 = prefs.getString("custom_name_2", "") ?: ""
@@ -119,7 +149,6 @@ class RephraseAccessibilityService : AccessibilityService() {
         val customName3 = prefs.getString("custom_name_3", "") ?: ""
         val customPrompt3 = prefs.getString("custom_prompt_3", "") ?: ""
 
-        // Show custom tones row only if at least one is set
         if (customName1.isNotEmpty() || customName2.isNotEmpty() || customName3.isNotEmpty()) {
             customTonesRow.visibility = View.VISIBLE
             if (customName1.isNotEmpty()) btnCustom1.text = "⭐ $customName1" else btnCustom1.visibility = View.GONE
@@ -149,7 +178,6 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         }
 
-        // Default tones
         mapOf(
             R.id.btn_formal    to "formal",
             R.id.btn_casual    to "casual",
@@ -167,7 +195,6 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         }
 
-        // Custom tones
         if (customPrompt1.isNotEmpty()) btnCustom1.setOnClickListener {
             rephrase("Give exactly 3 numbered rephrasing options. $customPrompt1 Format:\n1. ...\n2. ...\n3. ...")
         }
@@ -178,7 +205,6 @@ class RephraseAccessibilityService : AccessibilityService() {
             rephrase("Give exactly 3 numbered rephrasing options. $customPrompt3 Format:\n1. ...\n2. ...\n3. ...")
         }
 
-        // Option buttons paste on tap
         listOf(btnOption1, btnOption2, btnOption3).forEach { btn ->
             btn.setOnClickListener {
                 val text = btn.text.toString()
