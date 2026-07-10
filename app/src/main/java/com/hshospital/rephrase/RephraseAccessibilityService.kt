@@ -71,9 +71,15 @@ class RephraseAccessibilityService : AccessibilityService() {
         "concise"   to "Give exactly 3 numbered rephrasing options as concisely as possible. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
         "natural"   to "Give exactly 3 numbered rephrasing options that sound completely natural and conversational. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
         "discharge" to "Give exactly 3 numbered rephrasing options in discharge summary language. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
-        "tamil"     to "Give exactly 3 numbered Tamil translation options. Keep drug names in English. Format:\n1. ...\n2. ...\n3. ...",
-        "broadcast" to "Give exactly 3 numbered rephrasing options as WhatsApp broadcast from pediatric doctor to parents. Format:\n1. ...\n2. ...\n3. ..."
+        "tamil"     to "Give exactly 3 numbered Tamil translation options. Keep drug names in English. Format:\n1. ...\n2. ...\n3. ..."
     )
+
+    private val grammarPrompt = """
+        You are a grammar checker. Check the given text for grammar errors.
+        Respond in exactly this format:
+        CORRECTED: [the corrected sentence]
+        EXPLANATION: [brief explanation of what was wrong, or 'No errors found' if correct]
+    """.trimIndent()
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -114,6 +120,14 @@ class RephraseAccessibilityService : AccessibilityService() {
         return options.take(3)
     }
 
+    private fun parseGrammar(response: String): Pair<String, String> {
+        val corrected = Regex("CORRECTED:\\s*(.+)", RegexOption.IGNORE_CASE)
+            .find(response)?.groupValues?.get(1)?.trim() ?: response.trim()
+        val explanation = Regex("EXPLANATION:\\s*(.+)", RegexOption.IGNORE_CASE)
+            .find(response)?.groupValues?.get(1)?.trim() ?: ""
+        return Pair(corrected, explanation)
+    }
+
     private fun showBubble() {
         if (selectedText.isEmpty()) return
         dismissBubble()
@@ -141,6 +155,10 @@ class RephraseAccessibilityService : AccessibilityService() {
         val btnCustom1 = view.findViewById<Button>(R.id.btn_custom1)
         val btnCustom2 = view.findViewById<Button>(R.id.btn_custom2)
         val btnCustom3 = view.findViewById<Button>(R.id.btn_custom3)
+        val grammarScroll = view.findViewById<View>(R.id.grammarScroll)
+        val grammarCorrected = view.findViewById<TextView>(R.id.grammarCorrected)
+        val grammarExplanation = view.findViewById<TextView>(R.id.grammarExplanation)
+        val btnUseGrammar = view.findViewById<Button>(R.id.btn_use_grammar)
 
         val customName1 = prefs.getString("custom_name_1", "") ?: ""
         val customPrompt1 = prefs.getString("custom_prompt_1", "") ?: ""
@@ -156,10 +174,16 @@ class RephraseAccessibilityService : AccessibilityService() {
             if (customName3.isNotEmpty()) btnCustom3.text = "⭐ $customName3" else btnCustom3.visibility = View.GONE
         }
 
+        fun resetResults() {
+            optionsScroll.visibility = View.GONE
+            grammarScroll.visibility = View.GONE
+            btnUseGrammar.visibility = View.GONE
+            btnCloseTop.visibility = View.GONE
+        }
+
         fun rephrase(prompt: String) {
             statusMsg.text = "⏳ Rephrasing..."
-            optionsScroll.visibility = View.GONE
-            btnCloseTop.visibility = View.GONE
+            resetResults()
             callApi(selectedText, prompt) { result ->
                 handler.post {
                     if (result != null) {
@@ -178,6 +202,32 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         }
 
+        fun checkGrammar() {
+            statusMsg.text = "⏳ Checking grammar..."
+            resetResults()
+            callApi(selectedText, grammarPrompt) { result ->
+                handler.post {
+                    if (result != null) {
+                        val (corrected, explanation) = parseGrammar(result)
+                        grammarCorrected.text = "✅ $corrected"
+                        grammarExplanation.text = "📝 $explanation"
+                        grammarScroll.visibility = View.VISIBLE
+                        btnUseGrammar.visibility = View.VISIBLE
+                        btnCloseTop.visibility = View.VISIBLE
+                        statusMsg.text = "✍️ Grammar check done"
+                        btnUseGrammar.setOnClickListener {
+                            paste(corrected)
+                            dismissBubble()
+                        }
+                    } else {
+                        statusMsg.text = "⚠ Failed. Try again."
+                        btnCloseTop.visibility = View.VISIBLE
+                    }
+                }
+            }
+        }
+
+        // Default tones
         mapOf(
             R.id.btn_formal    to "formal",
             R.id.btn_casual    to "casual",
@@ -187,14 +237,19 @@ class RephraseAccessibilityService : AccessibilityService() {
             R.id.btn_concise   to "concise",
             R.id.btn_natural   to "natural",
             R.id.btn_discharge to "discharge",
-            R.id.btn_tamil     to "tamil",
-            R.id.btn_broadcast to "broadcast"
+            R.id.btn_tamil     to "tamil"
         ).forEach { (btnId, toneKey) ->
             view.findViewById<Button>(btnId).setOnClickListener {
                 rephrase(tones[toneKey]!!)
             }
         }
 
+        // Grammar button
+        view.findViewById<Button>(R.id.btn_grammar).setOnClickListener {
+            checkGrammar()
+        }
+
+        // Custom tones
         if (customPrompt1.isNotEmpty()) btnCustom1.setOnClickListener {
             rephrase("Give exactly 3 numbered rephrasing options. $customPrompt1 Format:\n1. ...\n2. ...\n3. ...")
         }
@@ -205,6 +260,7 @@ class RephraseAccessibilityService : AccessibilityService() {
             rephrase("Give exactly 3 numbered rephrasing options. $customPrompt3 Format:\n1. ...\n2. ...\n3. ...")
         }
 
+        // Option buttons
         listOf(btnOption1, btnOption2, btnOption3).forEach { btn ->
             btn.setOnClickListener {
                 val text = btn.text.toString()
