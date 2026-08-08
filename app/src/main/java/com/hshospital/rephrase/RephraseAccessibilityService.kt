@@ -1,7 +1,6 @@
 package com.hshospital.rephrase
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -70,7 +69,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         "medical"   to "Give exactly 3 numbered rephrasing options in clinical medical language. Keep ALL drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
         "simple"    to "Give exactly 3 numbered rephrasing options in very simple language. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
         "concise"   to "Give exactly 3 numbered rephrasing options as concisely as possible. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
-        "natural"   to "Give exactly 3 numbered rephrasing options that sound completely natural and conversational. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
+        "natural"   to "Give exactly 3 numbered rephrasing options that sound completely natural. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
         "discharge" to "Give exactly 3 numbered rephrasing options in discharge summary language. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
         "tamil"     to "Give exactly 3 numbered Tamil translation options. Keep drug names in English. Format:\n1. ...\n2. ...\n3. ...",
         "email"     to "Give exactly 3 numbered rephrasing options as polished professional email body. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ..."
@@ -92,19 +91,16 @@ class RephraseAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val pkg = event?.packageName?.toString() ?: ""
 
-        // Auto-disable for banking apps
         if (blockedApps.contains(pkg)) {
             if (!isDisabledForApp) {
                 isDisabledForApp = true
                 dismissBubble()
-                // Disable event listening temporarily
                 val info = serviceInfo
                 info.eventTypes = 0
                 serviceInfo = info
             }
             return
         } else {
-            // Re-enable when leaving blocked app
             if (isDisabledForApp) {
                 isDisabledForApp = false
                 val info = serviceInfo
@@ -211,7 +207,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         fun rephrase(prompt: String) {
             statusMsg.text = "⏳ Rephrasing..."
             resetResults()
-            callApi(selectedText, prompt) { result ->
+            callApiRephrase(selectedText, prompt) { result ->
                 handler.post {
                     if (result != null) {
                         val options = parseOptions(result)
@@ -232,7 +228,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         fun checkGrammar() {
             statusMsg.text = "⏳ Checking grammar..."
             resetResults()
-            callApi(selectedText, grammarPrompt) { result ->
+            callApiRephrase(selectedText, grammarPrompt) { result ->
                 handler.post {
                     if (result != null) {
                         val (corrected, explanation) = parseGrammar(result)
@@ -257,7 +253,8 @@ class RephraseAccessibilityService : AccessibilityService() {
         fun askAi(prompt: String) {
             statusMsg.text = "⏳ Asking AI..."
             resetResults()
-            callApi(selectedText, prompt) { result ->
+            // Use direct API — no "rephrase" prefix, just apply prompt to text directly
+            callApiDirect(selectedText, prompt) { result ->
                 handler.post {
                     if (result != null) {
                         askAiResult.text = result
@@ -272,7 +269,6 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         }
 
-        // Default tones
         mapOf(
             R.id.btn_formal    to "formal",
             R.id.btn_casual    to "casual",
@@ -289,12 +285,10 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         }
 
-        // Grammar
         view.findViewById<Button>(R.id.btn_grammar).setOnClickListener {
             checkGrammar()
         }
 
-        // Ask AI
         view.findViewById<Button>(R.id.btn_ask_ai).setOnClickListener {
             if (askAiPrompt.isNotEmpty()) {
                 askAi(askAiPrompt)
@@ -304,7 +298,6 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         }
 
-        // Custom tones
         if (customPrompt1.isNotEmpty()) btnCustom1.setOnClickListener {
             rephrase("Give exactly 3 numbered rephrasing options. $customPrompt1 Format:\n1. ...\n2. ...\n3. ...")
         }
@@ -315,7 +308,6 @@ class RephraseAccessibilityService : AccessibilityService() {
             rephrase("Give exactly 3 numbered rephrasing options. $customPrompt3 Format:\n1. ...\n2. ...\n3. ...")
         }
 
-        // Option buttons
         listOf(btnOption1, btnOption2, btnOption3).forEach { btn ->
             btn.setOnClickListener {
                 val text = btn.text.toString()
@@ -340,7 +332,8 @@ class RephraseAccessibilityService : AccessibilityService() {
         activeNode?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
-    private fun callApi(text: String, prompt: String, callback: (String?) -> Unit) {
+    // For rephrasing — adds "Rephrase this exact text" prefix
+    private fun callApiRephrase(text: String, prompt: String, callback: (String?) -> Unit) {
         val key = prefs.getString("api_key", "") ?: ""
         if (key.isEmpty()) { callback(null); return }
         val body = JSONObject().apply {
@@ -352,6 +345,27 @@ class RephraseAccessibilityService : AccessibilityService() {
                 put("content", "Rephrase this exact text as instructed: [$text]")
             }))
         }
+        makeRequest(body, callback)
+    }
+
+    // For Ask AI — sends text directly with user's custom prompt
+    private fun callApiDirect(text: String, prompt: String, callback: (String?) -> Unit) {
+        val key = prefs.getString("api_key", "") ?: ""
+        if (key.isEmpty()) { callback(null); return }
+        val body = JSONObject().apply {
+            put("model", "claude-sonnet-4-5-20250929")
+            put("max_tokens", 1000)
+            put("system", "You are a helpful assistant. Answer the user's question about the given text clearly and concisely.")
+            put("messages", JSONArray().put(JSONObject().apply {
+                put("role", "user")
+                put("content", "$prompt\n\nText: \"$text\"")
+            }))
+        }
+        makeRequest(body, callback)
+    }
+
+    private fun makeRequest(body: JSONObject, callback: (String?) -> Unit) {
+        val key = prefs.getString("api_key", "") ?: ""
         val req = Request.Builder()
             .url("https://api.anthropic.com/v1/messages")
             .addHeader("Content-Type", "application/json")
