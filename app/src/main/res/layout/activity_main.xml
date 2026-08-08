@@ -107,7 +107,6 @@
             android:background="#21262d"
             android:layout_marginBottom="24dp"/>
 
-        <!-- Ask AI Prompt -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -120,7 +119,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Type what you want to ask about selected text. e.g. Explain this sentence, What does this mean?, Is this medically accurate?"
+            android:text="This is what the 💬 Ask AI button will do with your selected text."
             android:textSize="12sp"
             android:textColor="#6e7681"
             android:layout_marginBottom="12dp"/>
@@ -129,14 +128,14 @@
             android:id="@+id/askAiPrompt"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="e.g. Explain this sentence in simple terms"
+            android:hint="e.g. Explain this sentence and give its meaning with examples"
             android:textColor="#e6edf3"
             android:textColorHint="#484f58"
             android:background="@drawable/input_bg"
             android:padding="12dp"
             android:textSize="13sp"
             android:inputType="textMultiLine"
-            android:minLines="2"
+            android:minLines="3"
             android:layout_marginBottom="8dp"/>
 
         <Button
@@ -145,7 +144,7 @@
             android:layout_height="52dp"
             android:text="💾 Save Question"
             android:textSize="14sp"
-            android:backgroundTint="#238636"
+            android:backgroundTint="#0e7490"
             android:textAllCaps="false"
             android:layout_marginBottom="24dp"/>
 
@@ -155,7 +154,6 @@
             android:background="#21262d"
             android:layout_marginBottom="24dp"/>
 
-        <!-- Custom Tones -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -174,7 +172,7 @@
             android:layout_marginBottom="16dp"/>
 
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Custom Tone 1" android:textSize="12sp" android:textColor="#58a6ff" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/customName1" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tone name (e.g. Friendly)" android:textColor="#e6edf3" android:textColorHint="#484f58" android:background="@drawable/input_bg" android:padding="12dp" android:textSize="13sp" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/customName1" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tone name" android:textColor="#e6edf3" android:textColorHint="#484f58" android:background="@drawable/input_bg" android:padding="12dp" android:textSize="13sp" android:layout_marginBottom="6dp"/>
         <EditText android:id="@+id/customPrompt1" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Prompt" android:textColor="#e6edf3" android:textColorHint="#484f58" android:background="@drawable/input_bg" android:padding="12dp" android:textSize="13sp" android:inputType="textMultiLine" android:minLines="2" android:layout_marginBottom="6dp"/>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="16dp">
             <Button android:id="@+id/saveCustom1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="44dp" android:text="💾 Save" android:textSize="13sp" android:backgroundTint="#238636" android:textAllCaps="false" android:layout_marginEnd="8dp"/>
