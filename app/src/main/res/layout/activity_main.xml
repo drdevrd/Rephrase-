@@ -107,6 +107,55 @@
             android:background="#21262d"
             android:layout_marginBottom="24dp"/>
 
+        <!-- Ask AI Prompt -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="💬 Ask AI — Custom Question"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#c9d1d9"
+            android:layout_marginBottom="4dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Type what you want to ask about selected text. e.g. Explain this sentence, What does this mean?, Is this medically accurate?"
+            android:textSize="12sp"
+            android:textColor="#6e7681"
+            android:layout_marginBottom="12dp"/>
+
+        <EditText
+            android:id="@+id/askAiPrompt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="e.g. Explain this sentence in simple terms"
+            android:textColor="#e6edf3"
+            android:textColorHint="#484f58"
+            android:background="@drawable/input_bg"
+            android:padding="12dp"
+            android:textSize="13sp"
+            android:inputType="textMultiLine"
+            android:minLines="2"
+            android:layout_marginBottom="8dp"/>
+
+        <Button
+            android:id="@+id/saveAskAi"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="💾 Save Question"
+            android:textSize="14sp"
+            android:backgroundTint="#238636"
+            android:textAllCaps="false"
+            android:layout_marginBottom="24dp"/>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#21262d"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- Custom Tones -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -124,178 +173,28 @@
             android:textColor="#6e7681"
             android:layout_marginBottom="16dp"/>
 
-        <!-- Custom Tone 1 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Custom Tone 1"
-            android:textSize="12sp"
-            android:textColor="#58a6ff"
-            android:layout_marginBottom="6dp"/>
-        <EditText
-            android:id="@+id/customName1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Tone name (e.g. Friendly)"
-            android:textColor="#e6edf3"
-            android:textColorHint="#484f58"
-            android:background="@drawable/input_bg"
-            android:padding="12dp"
-            android:textSize="13sp"
-            android:layout_marginBottom="6dp"/>
-        <EditText
-            android:id="@+id/customPrompt1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Prompt (e.g. Rephrase in a friendly tone...)"
-            android:textColor="#e6edf3"
-            android:textColorHint="#484f58"
-            android:background="@drawable/input_bg"
-            android:padding="12dp"
-            android:textSize="13sp"
-            android:inputType="textMultiLine"
-            android:minLines="2"
-            android:layout_marginBottom="6dp"/>
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
-            <Button
-                android:id="@+id/saveCustom1"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="44dp"
-                android:text="💾 Save"
-                android:textSize="13sp"
-                android:backgroundTint="#238636"
-                android:textAllCaps="false"
-                android:layout_marginEnd="8dp"/>
-            <Button
-                android:id="@+id/deleteCustom1"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="44dp"
-                android:text="🗑 Delete"
-                android:textSize="13sp"
-                android:backgroundTint="#b62324"
-                android:textAllCaps="false"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Custom Tone 1" android:textSize="12sp" android:textColor="#58a6ff" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/customName1" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tone name (e.g. Friendly)" android:textColor="#e6edf3" android:textColorHint="#484f58" android:background="@drawable/input_bg" android:padding="12dp" android:textSize="13sp" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/customPrompt1" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Prompt" android:textColor="#e6edf3" android:textColorHint="#484f58" android:background="@drawable/input_bg" android:padding="12dp" android:textSize="13sp" android:inputType="textMultiLine" android:minLines="2" android:layout_marginBottom="6dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="16dp">
+            <Button android:id="@+id/saveCustom1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="44dp" android:text="💾 Save" android:textSize="13sp" android:backgroundTint="#238636" android:textAllCaps="false" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/deleteCustom1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="44dp" android:text="🗑 Delete" android:textSize="13sp" android:backgroundTint="#b62324" android:textAllCaps="false"/>
         </LinearLayout>
 
-        <!-- Custom Tone 2 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Custom Tone 2"
-            android:textSize="12sp"
-            android:textColor="#58a6ff"
-            android:layout_marginBottom="6dp"/>
-        <EditText
-            android:id="@+id/customName2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Tone name"
-            android:textColor="#e6edf3"
-            android:textColorHint="#484f58"
-            android:background="@drawable/input_bg"
-            android:padding="12dp"
-            android:textSize="13sp"
-            android:layout_marginBottom="6dp"/>
-        <EditText
-            android:id="@+id/customPrompt2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Prompt"
-            android:textColor="#e6edf3"
-            android:textColorHint="#484f58"
-            android:background="@drawable/input_bg"
-            android:padding="12dp"
-            android:textSize="13sp"
-            android:inputType="textMultiLine"
-            android:minLines="2"
-            android:layout_marginBottom="6dp"/>
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
-            <Button
-                android:id="@+id/saveCustom2"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="44dp"
-                android:text="💾 Save"
-                android:textSize="13sp"
-                android:backgroundTint="#238636"
-                android:textAllCaps="false"
-                android:layout_marginEnd="8dp"/>
-            <Button
-                android:id="@+id/deleteCustom2"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="44dp"
-                android:text="🗑 Delete"
-                android:textSize="13sp"
-                android:backgroundTint="#b62324"
-                android:textAllCaps="false"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Custom Tone 2" android:textSize="12sp" android:textColor="#58a6ff" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/customName2" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tone name" android:textColor="#e6edf3" android:textColorHint="#484f58" android:background="@drawable/input_bg" android:padding="12dp" android:textSize="13sp" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/customPrompt2" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Prompt" android:textColor="#e6edf3" android:textColorHint="#484f58" android:background="@drawable/input_bg" android:padding="12dp" android:textSize="13sp" android:inputType="textMultiLine" android:minLines="2" android:layout_marginBottom="6dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="16dp">
+            <Button android:id="@+id/saveCustom2" android:layout_width="0dp" android:layout_weight="1" android:layout_height="44dp" android:text="💾 Save" android:textSize="13sp" android:backgroundTint="#238636" android:textAllCaps="false" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/deleteCustom2" android:layout_width="0dp" android:layout_weight="1" android:layout_height="44dp" android:text="🗑 Delete" android:textSize="13sp" android:backgroundTint="#b62324" android:textAllCaps="false"/>
         </LinearLayout>
 
-        <!-- Custom Tone 3 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Custom Tone 3"
-            android:textSize="12sp"
-            android:textColor="#58a6ff"
-            android:layout_marginBottom="6dp"/>
-        <EditText
-            android:id="@+id/customName3"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Tone name"
-            android:textColor="#e6edf3"
-            android:textColorHint="#484f58"
-            android:background="@drawable/input_bg"
-            android:padding="12dp"
-            android:textSize="13sp"
-            android:layout_marginBottom="6dp"/>
-        <EditText
-            android:id="@+id/customPrompt3"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Prompt"
-            android:textColor="#e6edf3"
-            android:textColorHint="#484f58"
-            android:background="@drawable/input_bg"
-            android:padding="12dp"
-            android:textSize="13sp"
-            android:inputType="textMultiLine"
-            android:minLines="2"
-            android:layout_marginBottom="6dp"/>
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="24dp">
-            <Button
-                android:id="@+id/saveCustom3"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="44dp"
-                android:text="💾 Save"
-                android:textSize="13sp"
-                android:backgroundTint="#238636"
-                android:textAllCaps="false"
-                android:layout_marginEnd="8dp"/>
-            <Button
-                android:id="@+id/deleteCustom3"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="44dp"
-                android:text="🗑 Delete"
-                android:textSize="13sp"
-                android:backgroundTint="#b62324"
-                android:textAllCaps="false"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Custom Tone 3" android:textSize="12sp" android:textColor="#58a6ff" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/customName3" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tone name" android:textColor="#e6edf3" android:textColorHint="#484f58" android:background="@drawable/input_bg" android:padding="12dp" android:textSize="13sp" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/customPrompt3" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Prompt" android:textColor="#e6edf3" android:textColorHint="#484f58" android:background="@drawable/input_bg" android:padding="12dp" android:textSize="13sp" android:inputType="textMultiLine" android:minLines="2" android:layout_marginBottom="6dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="24dp">
+            <Button android:id="@+id/saveCustom3" android:layout_width="0dp" android:layout_weight="1" android:layout_height="44dp" android:text="💾 Save" android:textSize="13sp" android:backgroundTint="#238636" android:textAllCaps="false" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/deleteCustom3" android:layout_width="0dp" android:layout_weight="1" android:layout_height="44dp" android:text="🗑 Delete" android:textSize="13sp" android:backgroundTint="#b62324" android:textAllCaps="false"/>
         </LinearLayout>
 
     </LinearLayout>
