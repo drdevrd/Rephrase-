@@ -1,6 +1,7 @@
 package com.hshospital.rephrase
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -32,6 +33,7 @@ class RephraseAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private val client = OkHttpClient()
     private lateinit var prefs: SharedPreferences
+    private var isDisabledForApp = false
 
     private val blockedApps = setOf(
         "com.csam.icici.bank.imobile",
@@ -67,11 +69,11 @@ class RephraseAccessibilityService : AccessibilityService() {
         "casual"    to "Give exactly 3 numbered rephrasing options in friendly casual tone. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
         "medical"   to "Give exactly 3 numbered rephrasing options in clinical medical language. Keep ALL drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
         "simple"    to "Give exactly 3 numbered rephrasing options in very simple language. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
-        "empathy"   to "Give exactly 3 numbered rephrasing options in warm empathetic tone for a doctor speaking to a worried parent. Format:\n1. ...\n2. ...\n3. ...",
         "concise"   to "Give exactly 3 numbered rephrasing options as concisely as possible. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
         "natural"   to "Give exactly 3 numbered rephrasing options that sound completely natural and conversational. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
         "discharge" to "Give exactly 3 numbered rephrasing options in discharge summary language. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
-        "tamil"     to "Give exactly 3 numbered Tamil translation options. Keep drug names in English. Format:\n1. ...\n2. ...\n3. ..."
+        "tamil"     to "Give exactly 3 numbered Tamil translation options. Keep drug names in English. Format:\n1. ...\n2. ...\n3. ...",
+        "email"     to "Give exactly 3 numbered rephrasing options as polished professional email body. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ..."
     )
 
     private val grammarPrompt = """
@@ -89,7 +91,28 @@ class RephraseAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val pkg = event?.packageName?.toString() ?: ""
-        if (blockedApps.contains(pkg)) return
+
+        // Auto-disable for banking apps
+        if (blockedApps.contains(pkg)) {
+            if (!isDisabledForApp) {
+                isDisabledForApp = true
+                dismissBubble()
+                // Disable event listening temporarily
+                val info = serviceInfo
+                info.eventTypes = 0
+                serviceInfo = info
+            }
+            return
+        } else {
+            // Re-enable when leaving blocked app
+            if (isDisabledForApp) {
+                isDisabledForApp = false
+                val info = serviceInfo
+                info.eventTypes = AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED or
+                        AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                serviceInfo = info
+            }
+        }
 
         if (event?.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED) {
             val source = event.source ?: return
@@ -159,6 +182,8 @@ class RephraseAccessibilityService : AccessibilityService() {
         val grammarCorrected = view.findViewById<TextView>(R.id.grammarCorrected)
         val grammarExplanation = view.findViewById<TextView>(R.id.grammarExplanation)
         val btnUseGrammar = view.findViewById<Button>(R.id.btn_use_grammar)
+        val askAiScroll = view.findViewById<View>(R.id.askAiScroll)
+        val askAiResult = view.findViewById<TextView>(R.id.askAiResult)
 
         val customName1 = prefs.getString("custom_name_1", "") ?: ""
         val customPrompt1 = prefs.getString("custom_prompt_1", "") ?: ""
@@ -166,6 +191,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         val customPrompt2 = prefs.getString("custom_prompt_2", "") ?: ""
         val customName3 = prefs.getString("custom_name_3", "") ?: ""
         val customPrompt3 = prefs.getString("custom_prompt_3", "") ?: ""
+        val askAiPrompt = prefs.getString("ask_ai_prompt", "") ?: ""
 
         if (customName1.isNotEmpty() || customName2.isNotEmpty() || customName3.isNotEmpty()) {
             customTonesRow.visibility = View.VISIBLE
@@ -178,6 +204,7 @@ class RephraseAccessibilityService : AccessibilityService() {
             optionsScroll.visibility = View.GONE
             grammarScroll.visibility = View.GONE
             btnUseGrammar.visibility = View.GONE
+            askAiScroll.visibility = View.GONE
             btnCloseTop.visibility = View.GONE
         }
 
@@ -227,26 +254,54 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         }
 
+        fun askAi(prompt: String) {
+            statusMsg.text = "⏳ Asking AI..."
+            resetResults()
+            callApi(selectedText, prompt) { result ->
+                handler.post {
+                    if (result != null) {
+                        askAiResult.text = result
+                        askAiScroll.visibility = View.VISIBLE
+                        btnCloseTop.visibility = View.VISIBLE
+                        statusMsg.text = "💬 AI Response"
+                    } else {
+                        statusMsg.text = "⚠ Failed. Try again."
+                        btnCloseTop.visibility = View.VISIBLE
+                    }
+                }
+            }
+        }
+
         // Default tones
         mapOf(
             R.id.btn_formal    to "formal",
             R.id.btn_casual    to "casual",
             R.id.btn_medical   to "medical",
             R.id.btn_simple    to "simple",
-            R.id.btn_empathy   to "empathy",
             R.id.btn_concise   to "concise",
             R.id.btn_natural   to "natural",
             R.id.btn_discharge to "discharge",
-            R.id.btn_tamil     to "tamil"
+            R.id.btn_tamil     to "tamil",
+            R.id.btn_formal2   to "email"
         ).forEach { (btnId, toneKey) ->
             view.findViewById<Button>(btnId).setOnClickListener {
                 rephrase(tones[toneKey]!!)
             }
         }
 
-        // Grammar button
+        // Grammar
         view.findViewById<Button>(R.id.btn_grammar).setOnClickListener {
             checkGrammar()
+        }
+
+        // Ask AI
+        view.findViewById<Button>(R.id.btn_ask_ai).setOnClickListener {
+            if (askAiPrompt.isNotEmpty()) {
+                askAi(askAiPrompt)
+            } else {
+                statusMsg.text = "⚠ Set your question in RePhrase settings first!"
+                btnCloseTop.visibility = View.VISIBLE
+            }
         }
 
         // Custom tones
