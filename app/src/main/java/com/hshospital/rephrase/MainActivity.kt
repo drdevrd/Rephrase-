@@ -24,7 +24,6 @@ class MainActivity : AppCompatActivity() {
         val statusText = findViewById<TextView>(R.id.statusText)
         val openAccessibilityBtn = findViewById<Button>(R.id.openAccessibilityBtn)
 
-        // Load saved API key
         val savedKey = prefs.getString("api_key", "") ?: ""
         if (savedKey.isNotEmpty()) {
             apiKeyInput.setText(savedKey)
@@ -46,6 +45,24 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
 
+        // Ask AI prompt
+        val askAiPrompt = findViewById<EditText>(R.id.askAiPrompt)
+        val saveAskAi = findViewById<Button>(R.id.saveAskAi)
+
+        askAiPrompt.setText(prefs.getString("ask_ai_prompt", ""))
+
+        saveAskAi.setOnClickListener {
+            val prompt = askAiPrompt.text.toString().trim()
+            if (prompt.isNotEmpty()) {
+                prefs.edit().putString("ask_ai_prompt", prompt).apply()
+                statusText.text = "✓ Ask AI question saved!"
+                statusText.setTextColor(getColor(android.R.color.holo_green_light))
+            } else {
+                prefs.edit().remove("ask_ai_prompt").apply()
+                statusText.text = "🗑 Ask AI question cleared"
+            }
+        }
+
         // Custom Tone 1
         val customName1 = findViewById<EditText>(R.id.customName1)
         val customPrompt1 = findViewById<EditText>(R.id.customPrompt1)
@@ -65,10 +82,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         deleteCustom1.setOnClickListener {
-            prefs.edit()
-                .remove("custom_name_1")
-                .remove("custom_prompt_1")
-                .apply()
+            prefs.edit().remove("custom_name_1").remove("custom_prompt_1").apply()
             customName1.setText("")
             customPrompt1.setText("")
             statusText.text = "🗑 Custom Tone 1 deleted"
@@ -94,10 +108,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         deleteCustom2.setOnClickListener {
-            prefs.edit()
-                .remove("custom_name_2")
-                .remove("custom_prompt_2")
-                .apply()
+            prefs.edit().remove("custom_name_2").remove("custom_prompt_2").apply()
             customName2.setText("")
             customPrompt2.setText("")
             statusText.text = "🗑 Custom Tone 2 deleted"
@@ -123,10 +134,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         deleteCustom3.setOnClickListener {
-            prefs.edit()
-                .remove("custom_name_3")
-                .remove("custom_prompt_3")
-                .apply()
+            prefs.edit().remove("custom_name_3").remove("custom_prompt_3").apply()
             customName3.setText("")
             customPrompt3.setText("")
             statusText.text = "🗑 Custom Tone 3 deleted"
