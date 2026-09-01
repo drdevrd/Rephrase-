@@ -34,6 +34,10 @@ class RephraseAccessibilityService : AccessibilityService() {
     private lateinit var prefs: SharedPreferences
     private var isDisabledForApp = false
 
+    companion object {
+        var isEnabled = true
+    }
+
     private val blockedApps = setOf(
         "com.csam.icici.bank.imobile",
         "com.axis.mobile",
@@ -89,6 +93,8 @@ class RephraseAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (!isEnabled) return
+
         val pkg = event?.packageName?.toString() ?: ""
 
         if (blockedApps.contains(pkg)) {
@@ -149,6 +155,7 @@ class RephraseAccessibilityService : AccessibilityService() {
 
     private fun showBubble() {
         if (selectedText.isEmpty()) return
+        if (!isEnabled) return
         dismissBubble()
         val inflater = LayoutInflater.from(this)
         val view = inflater.inflate(R.layout.floating_bubble, null)
@@ -253,7 +260,6 @@ class RephraseAccessibilityService : AccessibilityService() {
         fun askAi(prompt: String) {
             statusMsg.text = "⏳ Asking AI..."
             resetResults()
-            // Use direct API — no "rephrase" prefix, just apply prompt to text directly
             callApiDirect(selectedText, prompt) { result ->
                 handler.post {
                     if (result != null) {
@@ -285,14 +291,11 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         }
 
-        view.findViewById<Button>(R.id.btn_grammar).setOnClickListener {
-            checkGrammar()
-        }
+        view.findViewById<Button>(R.id.btn_grammar).setOnClickListener { checkGrammar() }
 
         view.findViewById<Button>(R.id.btn_ask_ai).setOnClickListener {
-            if (askAiPrompt.isNotEmpty()) {
-                askAi(askAiPrompt)
-            } else {
+            if (askAiPrompt.isNotEmpty()) askAi(askAiPrompt)
+            else {
                 statusMsg.text = "⚠ Set your question in RePhrase settings first!"
                 btnCloseTop.visibility = View.VISIBLE
             }
@@ -332,34 +335,35 @@ class RephraseAccessibilityService : AccessibilityService() {
         activeNode?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
-    // For rephrasing — adds "Rephrase this exact text" prefix
     private fun callApiRephrase(text: String, prompt: String, callback: (String?) -> Unit) {
         val key = prefs.getString("api_key", "") ?: ""
         if (key.isEmpty()) { callback(null); return }
+        val messages = JSONArray().apply {
+            put(JSONObject().apply { put("role", "system"); put("content", prompt) })
+            put(JSONObject().apply { put("role", "user"); put("content", "Rephrase this exact text as instructed: [$text]") })
+        }
         val body = JSONObject().apply {
-            put("model", "claude-sonnet-4-5-20250929")
+            put("model", "gpt-4o-mini")
             put("max_tokens", 1000)
-            put("system", prompt)
-            put("messages", JSONArray().put(JSONObject().apply {
-                put("role", "user")
-                put("content", "Rephrase this exact text as instructed: [$text]")
-            }))
+            put("messages", messages)
         }
         makeRequest(body, callback)
     }
 
-    // For Ask AI — sends text directly with user's custom prompt
     private fun callApiDirect(text: String, prompt: String, callback: (String?) -> Unit) {
         val key = prefs.getString("api_key", "") ?: ""
         if (key.isEmpty()) { callback(null); return }
+        val messages = JSONArray().apply {
+            put(JSONObject().apply {
+                put("role", "system")
+                put("content", "You are a helpful assistant. Answer the user's question about the given text clearly and concisely.")
+            })
+            put(JSONObject().apply { put("role", "user"); put("content", "$prompt\n\nText: \"$text\"") })
+        }
         val body = JSONObject().apply {
-            put("model", "claude-sonnet-4-5-20250929")
+            put("model", "gpt-4o-mini")
             put("max_tokens", 1000)
-            put("system", "You are a helpful assistant. Answer the user's question about the given text clearly and concisely.")
-            put("messages", JSONArray().put(JSONObject().apply {
-                put("role", "user")
-                put("content", "$prompt\n\nText: \"$text\"")
-            }))
+            put("messages", messages)
         }
         makeRequest(body, callback)
     }
@@ -367,10 +371,9 @@ class RephraseAccessibilityService : AccessibilityService() {
     private fun makeRequest(body: JSONObject, callback: (String?) -> Unit) {
         val key = prefs.getString("api_key", "") ?: ""
         val req = Request.Builder()
-            .url("https://api.anthropic.com/v1/messages")
+            .url("https://api.openai.com/v1/chat/completions")
             .addHeader("Content-Type", "application/json")
-            .addHeader("x-api-key", key)
-            .addHeader("anthropic-version", "2023-06-01")
+            .addHeader("Authorization", "Bearer $key")
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
         client.newCall(req).enqueue(object : Callback {
@@ -378,7 +381,8 @@ class RephraseAccessibilityService : AccessibilityService() {
             override fun onResponse(call: Call, response: Response) {
                 try {
                     val json = JSONObject(response.body?.string() ?: "")
-                    callback(json.getJSONArray("content").getJSONObject(0).getString("text"))
+                    callback(json.getJSONArray("choices").getJSONObject(0)
+                        .getJSONObject("message").getString("content"))
                 } catch (e: Exception) { callback(null) }
             }
         })
