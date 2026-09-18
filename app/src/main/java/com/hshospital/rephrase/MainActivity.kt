@@ -34,7 +34,6 @@ class MainActivity : AppCompatActivity() {
         val customPrompt3 = findViewById<EditText>(R.id.customPrompt3)
 
         // Load saved values
-        apiKeyInput.setText(prefs.getString("api_key", ""))
         askAiPromptInput.setText(prefs.getString("ask_ai_prompt", ""))
         customName1.setText(prefs.getString("custom_name_1", ""))
         customPrompt1.setText(prefs.getString("custom_prompt_1", ""))
@@ -44,24 +43,46 @@ class MainActivity : AppCompatActivity() {
         customPrompt3.setText(prefs.getString("custom_prompt_3", ""))
 
         // Load saved provider
-        when (prefs.getString("api_provider", "gemini")) {
+        val savedProvider = prefs.getString("api_provider", "gemini") ?: "gemini"
+        when (savedProvider) {
             "claude" -> rbClaude.isChecked = true
             "openai" -> rbOpenAI.isChecked = true
             else -> rbGemini.isChecked = true
         }
 
+        // Per-provider key helpers
+        fun keyPrefName(provider: String) = "api_key_$provider"
+        fun currentProvider(): String = when {
+            rbClaude.isChecked -> "claude"
+            rbOpenAI.isChecked -> "openai"
+            else -> "gemini"
+        }
+        fun loadKeyFor(provider: String) {
+            // Migrate the old single shared key into whichever provider was active at upgrade time
+            val legacy = prefs.getString("api_key", "") ?: ""
+            if (legacy.isNotEmpty() && provider == savedProvider &&
+                (prefs.getString(keyPrefName(provider), "") ?: "").isEmpty()) {
+                prefs.edit().putString(keyPrefName(provider), legacy).remove("api_key").apply()
+            }
+            apiKeyInput.setText(prefs.getString(keyPrefName(provider), ""))
+        }
+
+        loadKeyFor(savedProvider)
+
+        // Swap the visible key field whenever the provider selection changes
+        rbGemini.setOnCheckedChangeListener { _, checked -> if (checked) loadKeyFor("gemini") }
+        rbClaude.setOnCheckedChangeListener { _, checked -> if (checked) loadKeyFor("claude") }
+        rbOpenAI.setOnCheckedChangeListener { _, checked -> if (checked) loadKeyFor("openai") }
+
         saveApiKeyBtn.setOnClickListener {
+            val provider = currentProvider()
             val key = apiKeyInput.text.toString().trim()
-            prefs.edit().putString("api_key", key).apply()
-            Toast.makeText(this, "API key saved!", Toast.LENGTH_SHORT).show()
+            prefs.edit().putString(keyPrefName(provider), key).apply()
+            Toast.makeText(this, "API key saved for $provider", Toast.LENGTH_SHORT).show()
         }
 
         saveProviderBtn.setOnClickListener {
-            val provider = when {
-                rbClaude.isChecked -> "claude"
-                rbOpenAI.isChecked -> "openai"
-                else -> "gemini"
-            }
+            val provider = currentProvider()
             prefs.edit().putString("api_provider", provider).apply()
             Toast.makeText(this, "Provider saved: $provider", Toast.LENGTH_SHORT).show()
         }
