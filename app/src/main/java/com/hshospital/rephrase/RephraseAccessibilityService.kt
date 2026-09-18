@@ -18,13 +18,16 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import okhttp3.*
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
-import kotlin.math.abs
 
 class RephraseAccessibilityService : AccessibilityService() {
     private var windowManager: WindowManager? = null
@@ -83,12 +86,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         "email"     to "Give exactly 3 numbered rephrasing options as polished professional email body. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ..."
     )
 
-    private val grammarPrompt = """
-        You are a grammar checker. Check the given text for grammar errors.
-        Respond in exactly this format:
-        CORRECTED: [the corrected sentence]
-        EXPLANATION: [brief explanation of what was wrong, or 'No errors found' if correct]
-    """.trimIndent()
+    private val grammarPrompt = "You are a grammar checker. Check the given text for grammar errors. Respond in exactly this format:\nCORRECTED: [the corrected sentence]\nEXPLANATION: [brief explanation of what was wrong, or 'No errors found' if correct]"
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -219,10 +217,10 @@ class RephraseAccessibilityService : AccessibilityService() {
                 MotionEvent.ACTION_MOVE -> {
                     val dx = motionEvent.rawX - startX
                     val dy = motionEvent.rawY - startY
-                    if (abs(dx) > 10 || abs(dy) > 10) {
+                    if (dx > 10f || dx < -10f || dy > 10f || dy < -10f) {
                         isDragging = true
-                        params.x = (startParamsX - dx).toInt()
-                        params.y = (startParamsY - dy).toInt()
+                        params.x = (startParamsX.toFloat() - dx).toInt()
+                        params.y = (startParamsY.toFloat() - dy).toInt()
                         try { windowManager?.updateViewLayout(view, params) } catch (e: Exception) {}
                     }
                     true
@@ -256,7 +254,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         val options = mutableListOf<String>()
         for (line in lines) {
             val trimmed = line.trim()
-            if (trimmed.matches(Regex("^[123][\\.\\)].*"))) {
+            if (trimmed.matches(Regex("^[123][.)].*"))) {
                 options.add(trimmed.substring(2).trim())
             }
         }
@@ -278,8 +276,8 @@ class RephraseAccessibilityService : AccessibilityService() {
         if (selectedText.isEmpty()) return
         dismissBubble()
         val inflater = LayoutInflater.from(this)
-        val view = inflater.inflate(R.layout.floating_bubble, null)
-        bubbleView = view
+        val bubLayout = inflater.inflate(R.layout.floating_bubble, null)
+        bubbleView = bubLayout
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -291,22 +289,22 @@ class RephraseAccessibilityService : AccessibilityService() {
         params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         params.y = 100
 
-        val statusMsg = view.findViewById<TextView>(R.id.statusMsg)
-        val optionsScroll = view.findViewById<View>(R.id.optionsScroll)
-        val btnOption1 = view.findViewById<Button>(R.id.btn_option1)
-        val btnOption2 = view.findViewById<Button>(R.id.btn_option2)
-        val btnOption3 = view.findViewById<Button>(R.id.btn_option3)
-        val btnCloseTop = view.findViewById<Button>(R.id.btn_close_top)
-        val customTonesRow = view.findViewById<LinearLayout>(R.id.customTonesRow)
-        val btnCustom1 = view.findViewById<Button>(R.id.btn_custom1)
-        val btnCustom2 = view.findViewById<Button>(R.id.btn_custom2)
-        val btnCustom3 = view.findViewById<Button>(R.id.btn_custom3)
-        val grammarScroll = view.findViewById<View>(R.id.grammarScroll)
-        val grammarCorrected = view.findViewById<TextView>(R.id.grammarCorrected)
-        val grammarExplanation = view.findViewById<TextView>(R.id.grammarExplanation)
-        val btnUseGrammar = view.findViewById<Button>(R.id.btn_use_grammar)
-        val askAiScroll = view.findViewById<View>(R.id.askAiScroll)
-        val askAiResult = view.findViewById<TextView>(R.id.askAiResult)
+        val statusMsg = bubLayout.findViewById<TextView>(R.id.statusMsg)
+        val optionsScroll = bubLayout.findViewById<View>(R.id.optionsScroll)
+        val btnOption1 = bubLayout.findViewById<Button>(R.id.btn_option1)
+        val btnOption2 = bubLayout.findViewById<Button>(R.id.btn_option2)
+        val btnOption3 = bubLayout.findViewById<Button>(R.id.btn_option3)
+        val btnCloseTop = bubLayout.findViewById<Button>(R.id.btn_close_top)
+        val customTonesRow = bubLayout.findViewById<LinearLayout>(R.id.customTonesRow)
+        val btnCustom1 = bubLayout.findViewById<Button>(R.id.btn_custom1)
+        val btnCustom2 = bubLayout.findViewById<Button>(R.id.btn_custom2)
+        val btnCustom3 = bubLayout.findViewById<Button>(R.id.btn_custom3)
+        val grammarScroll = bubLayout.findViewById<View>(R.id.grammarScroll)
+        val grammarCorrected = bubLayout.findViewById<TextView>(R.id.grammarCorrected)
+        val grammarExplanation = bubLayout.findViewById<TextView>(R.id.grammarExplanation)
+        val btnUseGrammar = bubLayout.findViewById<Button>(R.id.btn_use_grammar)
+        val askAiScroll = bubLayout.findViewById<View>(R.id.askAiScroll)
+        val askAiResult = bubLayout.findViewById<TextView>(R.id.askAiResult)
 
         val customName1 = prefs.getString("custom_name_1", "") ?: ""
         val customPrompt1 = prefs.getString("custom_prompt_1", "") ?: ""
@@ -318,9 +316,9 @@ class RephraseAccessibilityService : AccessibilityService() {
 
         if (customName1.isNotEmpty() || customName2.isNotEmpty() || customName3.isNotEmpty()) {
             customTonesRow.visibility = View.VISIBLE
-            if (customName1.isNotEmpty()) btnCustom1.text = "⭐ $customName1" else btnCustom1.visibility = View.GONE
-            if (customName2.isNotEmpty()) btnCustom2.text = "⭐ $customName2" else btnCustom2.visibility = View.GONE
-            if (customName3.isNotEmpty()) btnCustom3.text = "⭐ $customName3" else btnCustom3.visibility = View.GONE
+            if (customName1.isNotEmpty()) btnCustom1.text = "\u2b50 $customName1" else btnCustom1.visibility = View.GONE
+            if (customName2.isNotEmpty()) btnCustom2.text = "\u2b50 $customName2" else btnCustom2.visibility = View.GONE
+            if (customName3.isNotEmpty()) btnCustom3.text = "\u2b50 $customName3" else btnCustom3.visibility = View.GONE
         }
 
         fun resetResults() {
@@ -332,7 +330,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         }
 
         fun rephrase(prompt: String) {
-            statusMsg.text = "⏳ Rephrasing..."
+            statusMsg.text = "Rephrasing..."
             resetResults()
             callApiRephrase(selectedText, prompt) { result ->
                 handler.post {
@@ -343,9 +341,9 @@ class RephraseAccessibilityService : AccessibilityService() {
                         btnOption3.text = "3. ${options.getOrElse(2) { "" }}"
                         optionsScroll.visibility = View.VISIBLE
                         btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "✅ Tap an option to use it"
+                        statusMsg.text = "Tap an option to use it"
                     } else {
-                        statusMsg.text = "⚠ Failed. Try again."
+                        statusMsg.text = "Failed. Try again."
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
@@ -353,24 +351,24 @@ class RephraseAccessibilityService : AccessibilityService() {
         }
 
         fun checkGrammar() {
-            statusMsg.text = "⏳ Checking grammar..."
+            statusMsg.text = "Checking grammar..."
             resetResults()
             callApiRephrase(selectedText, grammarPrompt) { result ->
                 handler.post {
                     if (result != null) {
                         val (corrected, explanation) = parseGrammar(result)
-                        grammarCorrected.text = "✅ $corrected"
-                        grammarExplanation.text = "📝 $explanation"
+                        grammarCorrected.text = corrected
+                        grammarExplanation.text = explanation
                         grammarScroll.visibility = View.VISIBLE
                         btnUseGrammar.visibility = View.VISIBLE
                         btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "✍️ Grammar check done"
+                        statusMsg.text = "Grammar check done"
                         btnUseGrammar.setOnClickListener {
                             paste(corrected)
                             dismissBubble()
                         }
                     } else {
-                        statusMsg.text = "⚠ Failed. Try again."
+                        statusMsg.text = "Failed. Try again."
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
@@ -378,7 +376,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         }
 
         fun askAi(prompt: String) {
-            statusMsg.text = "⏳ Asking AI..."
+            statusMsg.text = "Asking AI..."
             resetResults()
             callApiDirect(selectedText, prompt) { result ->
                 handler.post {
@@ -386,16 +384,16 @@ class RephraseAccessibilityService : AccessibilityService() {
                         askAiResult.text = result
                         askAiScroll.visibility = View.VISIBLE
                         btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "💬 AI Response"
+                        statusMsg.text = "AI Response"
                     } else {
-                        statusMsg.text = "⚠ Failed. Try again."
+                        statusMsg.text = "Failed. Try again."
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
             }
         }
 
-        mapOf(
+        val toneButtonMap = mapOf(
             R.id.btn_formal    to "formal",
             R.id.btn_casual    to "casual",
             R.id.btn_medical   to "medical",
@@ -405,18 +403,20 @@ class RephraseAccessibilityService : AccessibilityService() {
             R.id.btn_discharge to "discharge",
             R.id.btn_tamil     to "tamil",
             R.id.btn_formal2   to "email"
-        ).forEach { (btnId, toneKey) ->
-            view.findViewById<Button>(btnId).setOnClickListener {
+        )
+
+        for ((btnId, toneKey) in toneButtonMap) {
+            bubLayout.findViewById<Button>(btnId).setOnClickListener {
                 rephrase(tones[toneKey]!!)
             }
         }
 
-        view.findViewById<Button>(R.id.btn_grammar).setOnClickListener { checkGrammar() }
+        bubLayout.findViewById<Button>(R.id.btn_grammar).setOnClickListener { checkGrammar() }
 
-        view.findViewById<Button>(R.id.btn_ask_ai).setOnClickListener {
+        bubLayout.findViewById<Button>(R.id.btn_ask_ai).setOnClickListener {
             if (askAiPrompt.isNotEmpty()) askAi(askAiPrompt)
             else {
-                statusMsg.text = "⚠ Set your question in RePhrase settings first!"
+                statusMsg.text = "Set your question in RePhrase settings first!"
                 btnCloseTop.visibility = View.VISIBLE
             }
         }
@@ -431,12 +431,12 @@ class RephraseAccessibilityService : AccessibilityService() {
             rephrase("Give exactly 3 numbered rephrasing options. $customPrompt3 Format:\n1. ...\n2. ...\n3. ...")
         }
 
-        listOf(btnOption1, btnOption2, btnOption3).forEach { btn ->
+        for (btn in listOf(btnOption1, btnOption2, btnOption3)) {
             btn.setOnClickListener {
-                val text = btn.text.toString()
-                    .removePrefix("1. ")
-                    .removePrefix("2. ")
-                    .removePrefix("3. ")
+                var text = btn.text.toString()
+                if (text.startsWith("1. ")) text = text.substring(3)
+                else if (text.startsWith("2. ")) text = text.substring(3)
+                else if (text.startsWith("3. ")) text = text.substring(3)
                 paste(text)
                 dismissBubble()
             }
@@ -444,7 +444,7 @@ class RephraseAccessibilityService : AccessibilityService() {
 
         btnCloseTop.setOnClickListener { dismissBubble() }
 
-        try { windowManager?.addView(view, params) } catch (e: Exception) {}
+        try { windowManager?.addView(bubLayout, params) } catch (e: Exception) {}
     }
 
     private fun paste(text: String) {
@@ -458,33 +458,26 @@ class RephraseAccessibilityService : AccessibilityService() {
     private fun callApiRephrase(text: String, prompt: String, callback: (String?) -> Unit) {
         val key = prefs.getString("api_key", "") ?: ""
         if (key.isEmpty()) { callback(null); return }
-        val messages = JSONArray().apply {
-            put(JSONObject().apply { put("role", "system"); put("content", prompt) })
-            put(JSONObject().apply { put("role", "user"); put("content", "Rephrase this exact text as instructed: [$text]") })
-        }
-        val body = JSONObject().apply {
-            put("model", "gpt-4o-mini")
-            put("max_tokens", 1000)
-            put("messages", messages)
-        }
+        val messages = JSONArray()
+        messages.put(JSONObject().put("role", "system").put("content", prompt))
+        messages.put(JSONObject().put("role", "user").put("content", "Rephrase this exact text as instructed: [$text]"))
+        val body = JSONObject()
+        body.put("model", "gpt-4o-mini")
+        body.put("max_tokens", 1000)
+        body.put("messages", messages)
         makeRequest(body, callback)
     }
 
     private fun callApiDirect(text: String, prompt: String, callback: (String?) -> Unit) {
         val key = prefs.getString("api_key", "") ?: ""
         if (key.isEmpty()) { callback(null); return }
-        val messages = JSONArray().apply {
-            put(JSONObject().apply {
-                put("role", "system")
-                put("content", "You are a helpful assistant. Answer the user's question about the given text clearly and concisely.")
-            })
-            put(JSONObject().apply { put("role", "user"); put("content", "$prompt\n\nText: \"$text\"") })
-        }
-        val body = JSONObject().apply {
-            put("model", "gpt-4o-mini")
-            put("max_tokens", 1000)
-            put("messages", messages)
-        }
+        val messages = JSONArray()
+        messages.put(JSONObject().put("role", "system").put("content", "You are a helpful assistant. Answer the user's question about the given text clearly and concisely."))
+        messages.put(JSONObject().put("role", "user").put("content", "$prompt\n\nText: \"$text\""))
+        val body = JSONObject()
+        body.put("model", "gpt-4o-mini")
+        body.put("max_tokens", 1000)
+        body.put("messages", messages)
         makeRequest(body, callback)
     }
 
