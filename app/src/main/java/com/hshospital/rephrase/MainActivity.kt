@@ -1,144 +1,115 @@
 package com.hshospital.rephrase
 
+import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
 import android.widget.EditText
-import android.widget.TextView
+import android.widget.RadioButton
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
-
-    private lateinit var prefs: SharedPreferences
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        prefs = getSharedPreferences("rephrase_prefs", MODE_PRIVATE)
+        val prefs = getSharedPreferences("rephrase_prefs", Context.MODE_PRIVATE)
 
         val apiKeyInput = findViewById<EditText>(R.id.apiKeyInput)
-        val saveKeyBtn = findViewById<Button>(R.id.saveKeyBtn)
-        val statusText = findViewById<TextView>(R.id.statusText)
-        val openAccessibilityBtn = findViewById<Button>(R.id.openAccessibilityBtn)
+        val saveApiKeyBtn = findViewById<Button>(R.id.saveApiKeyBtn)
+        val rbGemini = findViewById<RadioButton>(R.id.rbGemini)
+        val rbClaude = findViewById<RadioButton>(R.id.rbClaude)
+        val rbOpenAI = findViewById<RadioButton>(R.id.rbOpenAI)
+        val saveProviderBtn = findViewById<Button>(R.id.saveProviderBtn)
+        val accessibilityBtn = findViewById<Button>(R.id.accessibilityBtn)
+        val askAiPromptInput = findViewById<EditText>(R.id.askAiPromptInput)
+        val saveAskAiBtn = findViewById<Button>(R.id.saveAskAiBtn)
+        val customName1 = findViewById<EditText>(R.id.customName1)
+        val customPrompt1 = findViewById<EditText>(R.id.customPrompt1)
+        val customName2 = findViewById<EditText>(R.id.customName2)
+        val customPrompt2 = findViewById<EditText>(R.id.customPrompt2)
+        val customName3 = findViewById<EditText>(R.id.customName3)
+        val customPrompt3 = findViewById<EditText>(R.id.customPrompt3)
 
-        val savedKey = prefs.getString("api_key", "") ?: ""
-        if (savedKey.isNotEmpty()) {
-            apiKeyInput.setText(savedKey)
-            statusText.text = "✓ API key saved"
+        // Load saved values
+        apiKeyInput.setText(prefs.getString("api_key", ""))
+        askAiPromptInput.setText(prefs.getString("ask_ai_prompt", ""))
+        customName1.setText(prefs.getString("custom_name_1", ""))
+        customPrompt1.setText(prefs.getString("custom_prompt_1", ""))
+        customName2.setText(prefs.getString("custom_name_2", ""))
+        customPrompt2.setText(prefs.getString("custom_prompt_2", ""))
+        customName3.setText(prefs.getString("custom_name_3", ""))
+        customPrompt3.setText(prefs.getString("custom_prompt_3", ""))
+
+        // Load saved provider
+        when (prefs.getString("api_provider", "gemini")) {
+            "claude" -> rbClaude.isChecked = true
+            "openai" -> rbOpenAI.isChecked = true
+            else -> rbGemini.isChecked = true
         }
 
-        saveKeyBtn.setOnClickListener {
+        saveApiKeyBtn.setOnClickListener {
             val key = apiKeyInput.text.toString().trim()
-            if (key.isNotEmpty()) {
-                prefs.edit().putString("api_key", key).apply()
-                statusText.text = "✓ API key saved successfully!"
-            } else {
-                statusText.text = "⚠ Please enter your API key"
-                statusText.setTextColor(getColor(android.R.color.holo_red_light))
-            }
+            prefs.edit().putString("api_key", key).apply()
+            Toast.makeText(this, "API key saved!", Toast.LENGTH_SHORT).show()
         }
 
-        openAccessibilityBtn.setOnClickListener {
+        saveProviderBtn.setOnClickListener {
+            val provider = when {
+                rbClaude.isChecked -> "claude"
+                rbOpenAI.isChecked -> "openai"
+                else -> "gemini"
+            }
+            prefs.edit().putString("api_provider", provider).apply()
+            Toast.makeText(this, "Provider saved: $provider", Toast.LENGTH_SHORT).show()
+        }
+
+        accessibilityBtn.setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
 
-        // Ask AI prompt
-        val askAiPrompt = findViewById<EditText>(R.id.askAiPrompt)
-        val saveAskAi = findViewById<Button>(R.id.saveAskAi)
-
-        askAiPrompt.setText(prefs.getString("ask_ai_prompt", ""))
-
-        saveAskAi.setOnClickListener {
-            val prompt = askAiPrompt.text.toString().trim()
-            if (prompt.isNotEmpty()) {
-                prefs.edit().putString("ask_ai_prompt", prompt).apply()
-                statusText.text = "✓ Ask AI question saved!"
-                statusText.setTextColor(getColor(android.R.color.holo_green_light))
-            } else {
-                prefs.edit().remove("ask_ai_prompt").apply()
-                statusText.text = "🗑 Ask AI question cleared"
-            }
+        saveAskAiBtn.setOnClickListener {
+            prefs.edit().putString("ask_ai_prompt", askAiPromptInput.text.toString().trim()).apply()
+            Toast.makeText(this, "Question saved!", Toast.LENGTH_SHORT).show()
         }
 
-        // Custom Tone 1
-        val customName1 = findViewById<EditText>(R.id.customName1)
-        val customPrompt1 = findViewById<EditText>(R.id.customPrompt1)
-        val saveCustom1 = findViewById<Button>(R.id.saveCustom1)
-        val deleteCustom1 = findViewById<Button>(R.id.deleteCustom1)
-
-        customName1.setText(prefs.getString("custom_name_1", ""))
-        customPrompt1.setText(prefs.getString("custom_prompt_1", ""))
-
-        saveCustom1.setOnClickListener {
+        findViewById<Button>(R.id.saveCustom1).setOnClickListener {
             prefs.edit()
                 .putString("custom_name_1", customName1.text.toString().trim())
                 .putString("custom_prompt_1", customPrompt1.text.toString().trim())
                 .apply()
-            statusText.text = "✓ Custom Tone 1 saved!"
-            statusText.setTextColor(getColor(android.R.color.holo_green_light))
+            Toast.makeText(this, "Custom tone 1 saved!", Toast.LENGTH_SHORT).show()
         }
-
-        deleteCustom1.setOnClickListener {
-            prefs.edit().remove("custom_name_1").remove("custom_prompt_1").apply()
-            customName1.setText("")
-            customPrompt1.setText("")
-            statusText.text = "🗑 Custom Tone 1 deleted"
-            statusText.setTextColor(getColor(android.R.color.holo_red_light))
+        findViewById<Button>(R.id.deleteCustom1).setOnClickListener {
+            prefs.edit().putString("custom_name_1", "").putString("custom_prompt_1", "").apply()
+            customName1.setText(""); customPrompt1.setText("")
+            Toast.makeText(this, "Custom tone 1 deleted!", Toast.LENGTH_SHORT).show()
         }
-
-        // Custom Tone 2
-        val customName2 = findViewById<EditText>(R.id.customName2)
-        val customPrompt2 = findViewById<EditText>(R.id.customPrompt2)
-        val saveCustom2 = findViewById<Button>(R.id.saveCustom2)
-        val deleteCustom2 = findViewById<Button>(R.id.deleteCustom2)
-
-        customName2.setText(prefs.getString("custom_name_2", ""))
-        customPrompt2.setText(prefs.getString("custom_prompt_2", ""))
-
-        saveCustom2.setOnClickListener {
+        findViewById<Button>(R.id.saveCustom2).setOnClickListener {
             prefs.edit()
                 .putString("custom_name_2", customName2.text.toString().trim())
                 .putString("custom_prompt_2", customPrompt2.text.toString().trim())
                 .apply()
-            statusText.text = "✓ Custom Tone 2 saved!"
-            statusText.setTextColor(getColor(android.R.color.holo_green_light))
+            Toast.makeText(this, "Custom tone 2 saved!", Toast.LENGTH_SHORT).show()
         }
-
-        deleteCustom2.setOnClickListener {
-            prefs.edit().remove("custom_name_2").remove("custom_prompt_2").apply()
-            customName2.setText("")
-            customPrompt2.setText("")
-            statusText.text = "🗑 Custom Tone 2 deleted"
-            statusText.setTextColor(getColor(android.R.color.holo_red_light))
+        findViewById<Button>(R.id.deleteCustom2).setOnClickListener {
+            prefs.edit().putString("custom_name_2", "").putString("custom_prompt_2", "").apply()
+            customName2.setText(""); customPrompt2.setText("")
+            Toast.makeText(this, "Custom tone 2 deleted!", Toast.LENGTH_SHORT).show()
         }
-
-        // Custom Tone 3
-        val customName3 = findViewById<EditText>(R.id.customName3)
-        val customPrompt3 = findViewById<EditText>(R.id.customPrompt3)
-        val saveCustom3 = findViewById<Button>(R.id.saveCustom3)
-        val deleteCustom3 = findViewById<Button>(R.id.deleteCustom3)
-
-        customName3.setText(prefs.getString("custom_name_3", ""))
-        customPrompt3.setText(prefs.getString("custom_prompt_3", ""))
-
-        saveCustom3.setOnClickListener {
+        findViewById<Button>(R.id.saveCustom3).setOnClickListener {
             prefs.edit()
                 .putString("custom_name_3", customName3.text.toString().trim())
                 .putString("custom_prompt_3", customPrompt3.text.toString().trim())
                 .apply()
-            statusText.text = "✓ Custom Tone 3 saved!"
-            statusText.setTextColor(getColor(android.R.color.holo_green_light))
+            Toast.makeText(this, "Custom tone 3 saved!", Toast.LENGTH_SHORT).show()
         }
-
-        deleteCustom3.setOnClickListener {
-            prefs.edit().remove("custom_name_3").remove("custom_prompt_3").apply()
-            customName3.setText("")
-            customPrompt3.setText("")
-            statusText.text = "🗑 Custom Tone 3 deleted"
-            statusText.setTextColor(getColor(android.R.color.holo_red_light))
+        findViewById<Button>(R.id.deleteCustom3).setOnClickListener {
+            prefs.edit().putString("custom_name_3", "").putString("custom_prompt_3", "").apply()
+            customName3.setText(""); customPrompt3.setText("")
+            Toast.makeText(this, "Custom tone 3 deleted!", Toast.LENGTH_SHORT).show()
         }
     }
 }
