@@ -11,8 +11,8 @@ android {
         applicationId "com.hshospital.rephrase"
         minSdk 26
         targetSdk 34
-        versionCode 11
-        versionName "2.1"
+        versionCode 28
+        versionName "3.8"
     }
 
     signingConfigs {
