@@ -38,6 +38,7 @@ class RephraseAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private val client = OkHttpClient()
     private lateinit var prefs: SharedPreferences
+    @Volatile private var lastApiError: String = ""
     private var isDisabledForApp = false
     private var isKeyboardVisible = false
 
@@ -338,7 +339,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                         btnCloseTop.visibility = View.VISIBLE
                         statusMsg.text = "Tap an option to use it"
                     } else {
-                        statusMsg.text = "Failed. Check API key & provider in settings."
+                        statusMsg.text = if (lastApiError.isNotEmpty()) lastApiError else "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
@@ -364,7 +365,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                             dismissBubble()
                         }
                     } else {
-                        statusMsg.text = "Failed. Check API key & provider in settings."
+                        statusMsg.text = if (lastApiError.isNotEmpty()) lastApiError else "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
@@ -381,7 +382,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                         btnCloseTop.visibility = View.VISIBLE
                         statusMsg.text = "AI Response"
                     } else {
-                        statusMsg.text = "Failed. Check API key & provider in settings."
+                        statusMsg.text = if (lastApiError.isNotEmpty()) lastApiError else "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
@@ -434,6 +435,7 @@ class RephraseAccessibilityService : AccessibilityService() {
 
     // Unified API caller — picks provider from prefs
     private fun callApi(text: String, prompt: String, isDirect: Boolean, callback: (String?) -> Unit) {
+        lastApiError = ""
         val provider = prefs.getString("api_provider", "gemini") ?: "gemini"
         // Per-provider key, falling back to the old shared key for installs not yet migrated
         var key = prefs.getString("api_key_$provider", "") ?: ""
@@ -463,6 +465,7 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         } catch (e: Exception) { bodyStr }
         val trimmed = if (shortMsg.length > 200) shortMsg.substring(0, 200) + "…" else shortMsg
+        lastApiError = "$provider $code: $trimmed"
         handler.post {
             Toast.makeText(this, "$provider error $code: $trimmed", Toast.LENGTH_LONG).show()
         }
@@ -485,7 +488,8 @@ class RephraseAccessibilityService : AccessibilityService() {
             .build()
         client.newCall(req).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                handler.post { Toast.makeText(this@RephraseAccessibilityService, "Claude request failed: ${e.message}", Toast.LENGTH_LONG).show() }
+                lastApiError = "Claude network error: ${e.message}"
+                handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
                 callback(null)
             }
             override fun onResponse(call: Call, response: Response) {
@@ -495,7 +499,8 @@ class RephraseAccessibilityService : AccessibilityService() {
                     val json = JSONObject(bodyStr)
                     callback(json.getJSONArray("content").getJSONObject(0).getString("text"))
                 } catch (e: Exception) {
-                    handler.post { Toast.makeText(this@RephraseAccessibilityService, "Claude: unexpected response format", Toast.LENGTH_LONG).show() }
+                    lastApiError = "Claude: unexpected response format"
+                    handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
                     callback(null)
                 }
             }
@@ -518,7 +523,8 @@ class RephraseAccessibilityService : AccessibilityService() {
             .build()
         client.newCall(req).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                handler.post { Toast.makeText(this@RephraseAccessibilityService, "OpenAI request failed: ${e.message}", Toast.LENGTH_LONG).show() }
+                lastApiError = "OpenAI network error: ${e.message}"
+                handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
                 callback(null)
             }
             override fun onResponse(call: Call, response: Response) {
@@ -528,7 +534,8 @@ class RephraseAccessibilityService : AccessibilityService() {
                     val json = JSONObject(bodyStr)
                     callback(json.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content"))
                 } catch (e: Exception) {
-                    handler.post { Toast.makeText(this@RephraseAccessibilityService, "OpenAI: unexpected response format", Toast.LENGTH_LONG).show() }
+                    lastApiError = "OpenAI: unexpected response format"
+                    handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
                     callback(null)
                 }
             }
@@ -551,7 +558,8 @@ class RephraseAccessibilityService : AccessibilityService() {
             .build()
         client.newCall(req).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                handler.post { Toast.makeText(this@RephraseAccessibilityService, "Gemini request failed: ${e.message}", Toast.LENGTH_LONG).show() }
+                lastApiError = "Gemini network error: ${e.message}"
+                handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
                 callback(null)
             }
             override fun onResponse(call: Call, response: Response) {
@@ -563,7 +571,8 @@ class RephraseAccessibilityService : AccessibilityService() {
                         .getJSONObject("content").getJSONArray("parts")
                         .getJSONObject(0).getString("text"))
                 } catch (e: Exception) {
-                    handler.post { Toast.makeText(this@RephraseAccessibilityService, "Gemini: unexpected response format", Toast.LENGTH_LONG).show() }
+                    lastApiError = "Gemini: unexpected response format"
+                    handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
                     callback(null)
                 }
             }
