@@ -434,17 +434,37 @@ class RephraseAccessibilityService : AccessibilityService() {
 
     // Unified API caller — picks provider from prefs
     private fun callApi(text: String, prompt: String, isDirect: Boolean, callback: (String?) -> Unit) {
-        val key = prefs.getString("api_key", "") ?: ""
+        val provider = prefs.getString("api_provider", "gemini") ?: "gemini"
+        // Per-provider key, falling back to the old shared key for installs not yet migrated
+        var key = prefs.getString("api_key_$provider", "") ?: ""
+        if (key.isEmpty()) key = prefs.getString("api_key", "") ?: ""
         if (key.isEmpty()) {
-            handler.post { Toast.makeText(this, "No API key set! Open RePhrase settings.", Toast.LENGTH_LONG).show() }
+            handler.post { Toast.makeText(this, "No API key set for $provider! Open RePhrase settings.", Toast.LENGTH_LONG).show() }
             callback(null); return
         }
-        val provider = prefs.getString("api_provider", "gemini") ?: "gemini"
         val userContent = if (isDirect) "$prompt\n\nText: $text" else "Rephrase this exact text as instructed: [$text]"
         when (provider) {
             "claude" -> callClaude(key, prompt, userContent, isDirect, callback)
             "openai" -> callOpenAI(key, prompt, userContent, isDirect, callback)
             else -> callGemini(key, prompt, userContent, isDirect, callback)
+        }
+    }
+
+    // Shows the real failure reason (HTTP code + provider error message) instead of a generic "Failed" toast
+    private fun reportApiError(provider: String, response: Response, bodyStr: String) {
+        val code = response.code
+        val shortMsg = try {
+            val json = JSONObject(bodyStr)
+            when {
+                json.has("error") && json.get("error") is JSONObject ->
+                    json.getJSONObject("error").optString("message", bodyStr)
+                json.has("error") -> json.optString("error", bodyStr)
+                else -> bodyStr
+            }
+        } catch (e: Exception) { bodyStr }
+        val trimmed = if (shortMsg.length > 200) shortMsg.substring(0, 200) + "…" else shortMsg
+        handler.post {
+            Toast.makeText(this, "$provider error $code: $trimmed", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -464,12 +484,20 @@ class RephraseAccessibilityService : AccessibilityService() {
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
         client.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { callback(null) }
+            override fun onFailure(call: Call, e: IOException) {
+                handler.post { Toast.makeText(this@RephraseAccessibilityService, "Claude request failed: ${e.message}", Toast.LENGTH_LONG).show() }
+                callback(null)
+            }
             override fun onResponse(call: Call, response: Response) {
+                val bodyStr = response.body?.string() ?: ""
+                if (!response.isSuccessful) { reportApiError("Claude", response, bodyStr); callback(null); return }
                 try {
-                    val json = JSONObject(response.body?.string() ?: "")
+                    val json = JSONObject(bodyStr)
                     callback(json.getJSONArray("content").getJSONObject(0).getString("text"))
-                } catch (e: Exception) { callback(null) }
+                } catch (e: Exception) {
+                    handler.post { Toast.makeText(this@RephraseAccessibilityService, "Claude: unexpected response format", Toast.LENGTH_LONG).show() }
+                    callback(null)
+                }
             }
         })
     }
@@ -489,12 +517,20 @@ class RephraseAccessibilityService : AccessibilityService() {
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
         client.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { callback(null) }
+            override fun onFailure(call: Call, e: IOException) {
+                handler.post { Toast.makeText(this@RephraseAccessibilityService, "OpenAI request failed: ${e.message}", Toast.LENGTH_LONG).show() }
+                callback(null)
+            }
             override fun onResponse(call: Call, response: Response) {
+                val bodyStr = response.body?.string() ?: ""
+                if (!response.isSuccessful) { reportApiError("OpenAI", response, bodyStr); callback(null); return }
                 try {
-                    val json = JSONObject(response.body?.string() ?: "")
+                    val json = JSONObject(bodyStr)
                     callback(json.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content"))
-                } catch (e: Exception) { callback(null) }
+                } catch (e: Exception) {
+                    handler.post { Toast.makeText(this@RephraseAccessibilityService, "OpenAI: unexpected response format", Toast.LENGTH_LONG).show() }
+                    callback(null)
+                }
             }
         })
     }
@@ -514,15 +550,22 @@ class RephraseAccessibilityService : AccessibilityService() {
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
         client.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { callback(null) }
+            override fun onFailure(call: Call, e: IOException) {
+                handler.post { Toast.makeText(this@RephraseAccessibilityService, "Gemini request failed: ${e.message}", Toast.LENGTH_LONG).show() }
+                callback(null)
+            }
             override fun onResponse(call: Call, response: Response) {
+                val bodyStr = response.body?.string() ?: ""
+                if (!response.isSuccessful) { reportApiError("Gemini", response, bodyStr); callback(null); return }
                 try {
-                    val responseStr = response.body?.string() ?: ""
-                    val json = JSONObject(responseStr)
+                    val json = JSONObject(bodyStr)
                     callback(json.getJSONArray("candidates").getJSONObject(0)
                         .getJSONObject("content").getJSONArray("parts")
                         .getJSONObject(0).getString("text"))
-                } catch (e: Exception) { callback(null) }
+                } catch (e: Exception) {
+                    handler.post { Toast.makeText(this@RephraseAccessibilityService, "Gemini: unexpected response format", Toast.LENGTH_LONG).show() }
+                    callback(null)
+                }
             }
         })
     }
