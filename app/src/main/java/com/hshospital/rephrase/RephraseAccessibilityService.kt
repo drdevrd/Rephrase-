@@ -86,7 +86,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         "email"     to "Give exactly 3 numbered rephrasing options as polished professional email body. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ..."
     )
 
-    private val grammarPrompt = "You are a grammar checker. Check the given text for grammar errors. Respond in exactly this format:\nCORRECTED: [the corrected sentence]\nEXPLANATION: [brief explanation of what was wrong, or 'No errors found' if correct]"
+    private val grammarPrompt = "You are a grammar checker. Check the given text for grammar errors. Respond in exactly this format:\nCORRECTED: [the corrected sentence]\nEXPLANATION: [brief explanation of what was wrong, or No errors found if correct]"
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -182,8 +182,8 @@ class RephraseAccessibilityService : AccessibilityService() {
         if (!isEnabled) return
         if (fabView != null) return
         val inflater = LayoutInflater.from(this)
-        val view = inflater.inflate(R.layout.floating_button, null)
-        fabView = view
+        val fabLayout = inflater.inflate(R.layout.floating_button, null)
+        fabView = fabLayout
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -196,32 +196,34 @@ class RephraseAccessibilityService : AccessibilityService() {
         params.x = 16
         params.y = 300
 
-        val btn = view.findViewById<Button>(R.id.fab_rephrase)
+        val btn = fabLayout.findViewById<Button>(R.id.fab_rephrase)
 
-        var startX = 0f
-        var startY = 0f
-        var startParamsX = 0
-        var startParamsY = 0
+        var startRawX = 0f
+        var startRawY = 0f
+        var startPX = 0
+        var startPY = 0
         var isDragging = false
 
-        btn.setOnTouchListener { _, motionEvent ->
-            when (motionEvent.action) {
+        btn.setOnTouchListener { _, ev ->
+            when (ev.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    startX = motionEvent.rawX
-                    startY = motionEvent.rawY
-                    startParamsX = params.x
-                    startParamsY = params.y
+                    startRawX = ev.rawX
+                    startRawY = ev.rawY
+                    startPX = params.x
+                    startPY = params.y
                     isDragging = false
                     false
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val dx = motionEvent.rawX - startX
-                    val dy = motionEvent.rawY - startY
-                    if (dx > 10f || dx < -10f || dy > 10f || dy < -10f) {
+                    val deltaX: Float = ev.rawX - startRawX
+                    val deltaY: Float = ev.rawY - startRawY
+                    val absDX: Float = if (deltaX < 0f) -deltaX else deltaX
+                    val absDY: Float = if (deltaY < 0f) -deltaY else deltaY
+                    if (absDX > 10f || absDY > 10f) {
                         isDragging = true
-                        params.x = (startParamsX.toFloat() - dx).toInt()
-                        params.y = (startParamsY.toFloat() - dy).toInt()
-                        try { windowManager?.updateViewLayout(view, params) } catch (e: Exception) {}
+                        params.x = startPX - deltaX.toInt()
+                        params.y = startPY - deltaY.toInt()
+                        try { windowManager?.updateViewLayout(fabLayout, params) } catch (e: Exception) {}
                     }
                     true
                 }
@@ -239,7 +241,7 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         }
 
-        try { windowManager?.addView(view, params) } catch (e: Exception) {}
+        try { windowManager?.addView(fabLayout, params) } catch (e: Exception) {}
     }
 
     private fun dismissFab() {
@@ -254,7 +256,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         val options = mutableListOf<String>()
         for (line in lines) {
             val trimmed = line.trim()
-            if (trimmed.matches(Regex("^[123][.)].*"))) {
+            if (trimmed.length > 2 && (trimmed[0] == '1' || trimmed[0] == '2' || trimmed[0] == '3') && (trimmed[1] == '.' || trimmed[1] == ')')) {
                 options.add(trimmed.substring(2).trim())
             }
         }
@@ -316,9 +318,9 @@ class RephraseAccessibilityService : AccessibilityService() {
 
         if (customName1.isNotEmpty() || customName2.isNotEmpty() || customName3.isNotEmpty()) {
             customTonesRow.visibility = View.VISIBLE
-            if (customName1.isNotEmpty()) btnCustom1.text = "\u2b50 $customName1" else btnCustom1.visibility = View.GONE
-            if (customName2.isNotEmpty()) btnCustom2.text = "\u2b50 $customName2" else btnCustom2.visibility = View.GONE
-            if (customName3.isNotEmpty()) btnCustom3.text = "\u2b50 $customName3" else btnCustom3.visibility = View.GONE
+            if (customName1.isNotEmpty()) btnCustom1.text = "* $customName1" else btnCustom1.visibility = View.GONE
+            if (customName2.isNotEmpty()) btnCustom2.text = "* $customName2" else btnCustom2.visibility = View.GONE
+            if (customName3.isNotEmpty()) btnCustom3.text = "* $customName3" else btnCustom3.visibility = View.GONE
         }
 
         fun resetResults() {
@@ -356,7 +358,9 @@ class RephraseAccessibilityService : AccessibilityService() {
             callApiRephrase(selectedText, grammarPrompt) { result ->
                 handler.post {
                     if (result != null) {
-                        val (corrected, explanation) = parseGrammar(result)
+                        val pair = parseGrammar(result)
+                        val corrected = pair.first
+                        val explanation = pair.second
                         grammarCorrected.text = corrected
                         grammarExplanation.text = explanation
                         grammarScroll.visibility = View.VISIBLE
@@ -393,24 +397,15 @@ class RephraseAccessibilityService : AccessibilityService() {
             }
         }
 
-        val toneButtonMap = mapOf(
-            R.id.btn_formal    to "formal",
-            R.id.btn_casual    to "casual",
-            R.id.btn_medical   to "medical",
-            R.id.btn_simple    to "simple",
-            R.id.btn_concise   to "concise",
-            R.id.btn_natural   to "natural",
-            R.id.btn_discharge to "discharge",
-            R.id.btn_tamil     to "tamil",
-            R.id.btn_formal2   to "email"
-        )
-
-        for ((btnId, toneKey) in toneButtonMap) {
-            bubLayout.findViewById<Button>(btnId).setOnClickListener {
-                rephrase(tones[toneKey]!!)
-            }
-        }
-
+        bubLayout.findViewById<Button>(R.id.btn_formal).setOnClickListener { rephrase(tones["formal"]!!) }
+        bubLayout.findViewById<Button>(R.id.btn_casual).setOnClickListener { rephrase(tones["casual"]!!) }
+        bubLayout.findViewById<Button>(R.id.btn_medical).setOnClickListener { rephrase(tones["medical"]!!) }
+        bubLayout.findViewById<Button>(R.id.btn_simple).setOnClickListener { rephrase(tones["simple"]!!) }
+        bubLayout.findViewById<Button>(R.id.btn_concise).setOnClickListener { rephrase(tones["concise"]!!) }
+        bubLayout.findViewById<Button>(R.id.btn_natural).setOnClickListener { rephrase(tones["natural"]!!) }
+        bubLayout.findViewById<Button>(R.id.btn_discharge).setOnClickListener { rephrase(tones["discharge"]!!) }
+        bubLayout.findViewById<Button>(R.id.btn_tamil).setOnClickListener { rephrase(tones["tamil"]!!) }
+        bubLayout.findViewById<Button>(R.id.btn_formal2).setOnClickListener { rephrase(tones["email"]!!) }
         bubLayout.findViewById<Button>(R.id.btn_grammar).setOnClickListener { checkGrammar() }
 
         bubLayout.findViewById<Button>(R.id.btn_ask_ai).setOnClickListener {
@@ -431,15 +426,20 @@ class RephraseAccessibilityService : AccessibilityService() {
             rephrase("Give exactly 3 numbered rephrasing options. $customPrompt3 Format:\n1. ...\n2. ...\n3. ...")
         }
 
-        for (btn in listOf(btnOption1, btnOption2, btnOption3)) {
-            btn.setOnClickListener {
-                var text = btn.text.toString()
-                if (text.startsWith("1. ")) text = text.substring(3)
-                else if (text.startsWith("2. ")) text = text.substring(3)
-                else if (text.startsWith("3. ")) text = text.substring(3)
-                paste(text)
-                dismissBubble()
-            }
+        btnOption1.setOnClickListener {
+            var t = btnOption1.text.toString()
+            if (t.startsWith("1. ")) t = t.substring(3)
+            paste(t); dismissBubble()
+        }
+        btnOption2.setOnClickListener {
+            var t = btnOption2.text.toString()
+            if (t.startsWith("2. ")) t = t.substring(3)
+            paste(t); dismissBubble()
+        }
+        btnOption3.setOnClickListener {
+            var t = btnOption3.text.toString()
+            if (t.startsWith("3. ")) t = t.substring(3)
+            paste(t); dismissBubble()
         }
 
         btnCloseTop.setOnClickListener { dismissBubble() }
@@ -472,8 +472,8 @@ class RephraseAccessibilityService : AccessibilityService() {
         val key = prefs.getString("api_key", "") ?: ""
         if (key.isEmpty()) { callback(null); return }
         val messages = JSONArray()
-        messages.put(JSONObject().put("role", "system").put("content", "You are a helpful assistant. Answer the user's question about the given text clearly and concisely."))
-        messages.put(JSONObject().put("role", "user").put("content", "$prompt\n\nText: \"$text\""))
+        messages.put(JSONObject().put("role", "system").put("content", "You are a helpful assistant. Answer the user question about the given text clearly and concisely."))
+        messages.put(JSONObject().put("role", "user").put("content", "$prompt\n\nText: $text"))
         val body = JSONObject()
         body.put("model", "gpt-4o-mini")
         body.put("max_tokens", 1000)
