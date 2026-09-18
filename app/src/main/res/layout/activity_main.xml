@@ -19,7 +19,6 @@
             android:textColor="#58a6ff"
             android:layout_marginBottom="24dp"/>
 
-        <!-- API KEY -->
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="API Key" android:textColor="#c9d1d9" android:textSize="14sp"
             android:layout_marginBottom="6dp"/>
@@ -43,42 +42,18 @@
             android:textAllCaps="false"
             android:layout_marginBottom="20dp"/>
 
-        <!-- PROVIDER SELECTOR -->
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="AI Provider" android:textColor="#c9d1d9" android:textSize="14sp"
             android:layout_marginBottom="10dp"/>
 
-<RadioGroup
-    android:id="@+id/providerGroup"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:layout_marginBottom="6dp">
-    <RadioButton
-        android:id="@+id/rbGemini"
-        android:layout_width="0dp"
-        android:layout_weight="1"
-        android:layout_height="wrap_content"
-        android:text="Gemini"
-        android:textColor="#c9d1d9"
-        android:buttonTint="#58a6ff"/>
-    <RadioButton
-        android:id="@+id/rbClaude"
-        android:layout_width="0dp"
-        android:layout_weight="1"
-        android:layout_height="wrap_content"
-        android:text="Claude"
-        android:textColor="#c9d1d9"
-        android:buttonTint="#58a6ff"/>
-    <RadioButton
-        android:id="@+id/rbOpenAI"
-        android:layout_width="0dp"
-        android:layout_weight="1"
-        android:layout_height="wrap_content"
-        android:text="OpenAI"
-        android:textColor="#c9d1d9"
-        android:buttonTint="#58a6ff"/>
-</RadioGroup>
+        <RadioGroup
+            android:id="@+id/providerGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="6dp">
+            <RadioButton
+                android:id="@+id/rbGemini"
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
@@ -101,7 +76,7 @@
                 android:text="OpenAI"
                 android:textColor="#c9d1d9"
                 android:buttonTint="#58a6ff"/>
-        </LinearLayout>
+        </RadioGroup>
 
         <Button
             android:id="@+id/saveProviderBtn"
@@ -112,7 +87,6 @@
             android:textAllCaps="false"
             android:layout_marginBottom="24dp"/>
 
-        <!-- ACCESSIBILITY SETTINGS -->
         <Button
             android:id="@+id/accessibilityBtn"
             android:layout_width="match_parent"
@@ -122,7 +96,6 @@
             android:textAllCaps="false"
             android:layout_marginBottom="24dp"/>
 
-        <!-- ASK AI PROMPT -->
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="Ask AI - Custom Question" android:textColor="#c9d1d9" android:textSize="14sp"
             android:layout_marginBottom="6dp"/>
@@ -145,7 +118,6 @@
             android:textAllCaps="false"
             android:layout_marginBottom="24dp"/>
 
-        <!-- CUSTOM TONES -->
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="Custom Tone 1" android:textColor="#c9d1d9" android:textSize="14sp"
             android:layout_marginBottom="6dp"/>
