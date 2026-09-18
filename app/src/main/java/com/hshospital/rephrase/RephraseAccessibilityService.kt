@@ -97,7 +97,6 @@ class RephraseAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (!isEnabled) return
         val pkg = event?.packageName?.toString() ?: ""
-
         if (blockedApps.contains(pkg)) {
             if (!isDisabledForApp) {
                 isDisabledForApp = true
@@ -108,7 +107,6 @@ class RephraseAccessibilityService : AccessibilityService() {
         } else {
             if (isDisabledForApp) isDisabledForApp = false
         }
-
         when (event?.eventType) {
             AccessibilityEvent.TYPE_VIEW_FOCUSED -> {
                 val source = event.source ?: return
@@ -150,12 +148,10 @@ class RephraseAccessibilityService : AccessibilityService() {
     }
 
     private fun getTextFromField(): String {
-        // Try active node first
         activeNode?.let { node ->
             val text = node.text?.toString()
             if (!text.isNullOrEmpty()) return text
         }
-        // Try root window scan
         try {
             val root = rootInActiveWindow ?: return ""
             val node = findFocusedEditableNode(root)
@@ -165,31 +161,8 @@ class RephraseAccessibilityService : AccessibilityService() {
                 if (!text.isNullOrEmpty()) return text
             }
         } catch (e: Exception) {}
-        // Fallback to clipboard
         val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         return cb.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
-    }
-
-    private fun selectAllAndCopy() {
-        // Perform select all on active node
-        activeNode?.performAction(AccessibilityNodeInfo.ACTION_SELECT)
-        // Small delay then copy
-        handler.postDelayed({
-            activeNode?.performAction(AccessibilityNodeInfo.ACTION_COPY)
-        }, 200)
-    }
-
-    private fun pasteFromClipboard() {
-        // Paste into active field
-        activeNode?.performAction(AccessibilityNodeInfo.ACTION_PASTE)
-        // If paste didn't work, try set text
-        handler.postDelayed({
-            val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val text = cb.primaryClip?.getItemAt(0)?.text?.toString() ?: return@postDelayed
-            val args = android.os.Bundle()
-            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
-            activeNode?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-        }, 300)
     }
 
     private fun showFab() {
@@ -198,7 +171,6 @@ class RephraseAccessibilityService : AccessibilityService() {
         val inflater = LayoutInflater.from(this)
         val fabLayout = inflater.inflate(R.layout.floating_button, null)
         fabView = fabLayout
-
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -209,15 +181,12 @@ class RephraseAccessibilityService : AccessibilityService() {
         params.gravity = Gravity.BOTTOM or Gravity.END
         params.x = prefs.getInt("fab_x", 16)
         params.y = prefs.getInt("fab_y", 300)
-
         val btn = fabLayout.findViewById<Button>(R.id.fab_rephrase)
-
         var startRawX = 0f
         var startRawY = 0f
         var startPX = 0
         var startPY = 0
         var isDragging = false
-
         btn.setOnTouchListener { _, ev ->
             when (ev.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -237,16 +206,15 @@ class RephraseAccessibilityService : AccessibilityService() {
                         isDragging = true
                         params.x = startPX - deltaX.toInt()
                         params.y = startPY - deltaY.toInt()
-                      try {
-                     windowManager?.updateViewLayout(fabLayout, params)
-                     prefs.edit().putInt("fab_x", params.x).putInt("fab_y", params.y).apply()
-                     } catch (e: Exception) {}
+                        try {
+                            windowManager?.updateViewLayout(fabLayout, params)
+                            prefs.edit().putInt("fab_x", params.x).putInt("fab_y", params.y).apply()
+                        } catch (e: Exception) {}
                     }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
                     if (!isDragging) {
-                        // Get text from field
                         val text = getTextFromField()
                         if (text.isNotEmpty()) {
                             showBubble(text)
@@ -259,7 +227,6 @@ class RephraseAccessibilityService : AccessibilityService() {
                 else -> false
             }
         }
-
         try { windowManager?.addView(fabLayout, params) } catch (e: Exception) {}
     }
 
@@ -299,7 +266,6 @@ class RephraseAccessibilityService : AccessibilityService() {
         val inflater = LayoutInflater.from(this)
         val bubLayout = inflater.inflate(R.layout.floating_bubble, null)
         bubbleView = bubLayout
-
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -309,7 +275,6 @@ class RephraseAccessibilityService : AccessibilityService() {
         )
         params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         params.y = 100
-
         val statusMsg = bubLayout.findViewById<TextView>(R.id.statusMsg)
         val optionsScroll = bubLayout.findViewById<View>(R.id.optionsScroll)
         val btnOption1 = bubLayout.findViewById<Button>(R.id.btn_option1)
@@ -326,7 +291,6 @@ class RephraseAccessibilityService : AccessibilityService() {
         val btnUseGrammar = bubLayout.findViewById<Button>(R.id.btn_use_grammar)
         val askAiScroll = bubLayout.findViewById<View>(R.id.askAiScroll)
         val askAiResult = bubLayout.findViewById<TextView>(R.id.askAiResult)
-
         val customName1 = prefs.getString("custom_name_1", "") ?: ""
         val customPrompt1 = prefs.getString("custom_prompt_1", "") ?: ""
         val customName2 = prefs.getString("custom_name_2", "") ?: ""
@@ -334,14 +298,12 @@ class RephraseAccessibilityService : AccessibilityService() {
         val customName3 = prefs.getString("custom_name_3", "") ?: ""
         val customPrompt3 = prefs.getString("custom_prompt_3", "") ?: ""
         val askAiPrompt = prefs.getString("ask_ai_prompt", "") ?: ""
-
         if (customName1.isNotEmpty() || customName2.isNotEmpty() || customName3.isNotEmpty()) {
             customTonesRow.visibility = View.VISIBLE
             if (customName1.isNotEmpty()) btnCustom1.text = "* $customName1" else btnCustom1.visibility = View.GONE
             if (customName2.isNotEmpty()) btnCustom2.text = "* $customName2" else btnCustom2.visibility = View.GONE
             if (customName3.isNotEmpty()) btnCustom3.text = "* $customName3" else btnCustom3.visibility = View.GONE
         }
-
         fun resetResults() {
             optionsScroll.visibility = View.GONE
             grammarScroll.visibility = View.GONE
@@ -349,28 +311,23 @@ class RephraseAccessibilityService : AccessibilityService() {
             askAiScroll.visibility = View.GONE
             btnCloseTop.visibility = View.GONE
         }
-
         fun pasteResult(text: String) {
-            // Put in clipboard
             val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cb.setPrimaryClip(ClipData.newPlainText("rephrased", text))
-            // Try to paste directly
             val args = android.os.Bundle()
             args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
             val success = activeNode?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args) ?: false
             if (!success) {
-                // Try paste action
                 activeNode?.performAction(AccessibilityNodeInfo.ACTION_PASTE)
             }
             handler.post {
                 Toast.makeText(this, "Copied! Long press to paste if needed.", Toast.LENGTH_SHORT).show()
             }
         }
-
         fun rephrase(prompt: String) {
             statusMsg.text = "Rephrasing..."
             resetResults()
-            callApiRephrase(inputText, prompt) { result ->
+            callApi(inputText, prompt, false) { result ->
                 handler.post {
                     if (result != null) {
                         val options = parseOptions(result)
@@ -381,17 +338,16 @@ class RephraseAccessibilityService : AccessibilityService() {
                         btnCloseTop.visibility = View.VISIBLE
                         statusMsg.text = "Tap an option to use it"
                     } else {
-                        statusMsg.text = "Failed. Try again."
+                        statusMsg.text = "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
             }
         }
-
         fun checkGrammar() {
             statusMsg.text = "Checking grammar..."
             resetResults()
-            callApiRephrase(inputText, grammarPrompt) { result ->
+            callApi(inputText, grammarPrompt, false) { result ->
                 handler.post {
                     if (result != null) {
                         val pair = parseGrammar(result)
@@ -408,17 +364,16 @@ class RephraseAccessibilityService : AccessibilityService() {
                             dismissBubble()
                         }
                     } else {
-                        statusMsg.text = "Failed. Try again."
+                        statusMsg.text = "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
             }
         }
-
         fun askAi(prompt: String) {
             statusMsg.text = "Asking AI..."
             resetResults()
-            callApiDirect(inputText, prompt) { result ->
+            callApi(inputText, prompt, true) { result ->
                 handler.post {
                     if (result != null) {
                         askAiResult.text = result
@@ -426,13 +381,12 @@ class RephraseAccessibilityService : AccessibilityService() {
                         btnCloseTop.visibility = View.VISIBLE
                         statusMsg.text = "AI Response"
                     } else {
-                        statusMsg.text = "Failed. Try again."
+                        statusMsg.text = "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
             }
         }
-
         bubLayout.findViewById<Button>(R.id.btn_formal).setOnClickListener { rephrase(tones["formal"]!!) }
         bubLayout.findViewById<Button>(R.id.btn_casual).setOnClickListener { rephrase(tones["casual"]!!) }
         bubLayout.findViewById<Button>(R.id.btn_medical).setOnClickListener { rephrase(tones["medical"]!!) }
@@ -443,7 +397,6 @@ class RephraseAccessibilityService : AccessibilityService() {
         bubLayout.findViewById<Button>(R.id.btn_tamil).setOnClickListener { rephrase(tones["tamil"]!!) }
         bubLayout.findViewById<Button>(R.id.btn_formal2).setOnClickListener { rephrase(tones["email"]!!) }
         bubLayout.findViewById<Button>(R.id.btn_grammar).setOnClickListener { checkGrammar() }
-
         bubLayout.findViewById<Button>(R.id.btn_ask_ai).setOnClickListener {
             if (askAiPrompt.isNotEmpty()) askAi(askAiPrompt)
             else {
@@ -451,7 +404,6 @@ class RephraseAccessibilityService : AccessibilityService() {
                 btnCloseTop.visibility = View.VISIBLE
             }
         }
-
         if (customPrompt1.isNotEmpty()) btnCustom1.setOnClickListener {
             rephrase("Give exactly 3 numbered rephrasing options. $customPrompt1 Format:\n1. ...\n2. ...\n3. ...")
         }
@@ -461,7 +413,6 @@ class RephraseAccessibilityService : AccessibilityService() {
         if (customPrompt3.isNotEmpty()) btnCustom3.setOnClickListener {
             rephrase("Give exactly 3 numbered rephrasing options. $customPrompt3 Format:\n1. ...\n2. ...\n3. ...")
         }
-
         btnOption1.setOnClickListener {
             var t = btnOption1.text.toString()
             if (t.startsWith("1. ")) t = t.substring(3)
@@ -477,40 +428,60 @@ class RephraseAccessibilityService : AccessibilityService() {
             if (t.startsWith("3. ")) t = t.substring(3)
             pasteResult(t); dismissBubble()
         }
-
         btnCloseTop.setOnClickListener { dismissBubble() }
-
         try { windowManager?.addView(bubLayout, params) } catch (e: Exception) {}
     }
 
-    private fun callApiRephrase(text: String, prompt: String, callback: (String?) -> Unit) {
+    // Unified API caller — picks provider from prefs
+    private fun callApi(text: String, prompt: String, isDirect: Boolean, callback: (String?) -> Unit) {
         val key = prefs.getString("api_key", "") ?: ""
-        if (key.isEmpty()) { callback(null); return }
+        if (key.isEmpty()) {
+            handler.post { Toast.makeText(this, "No API key set! Open RePhrase settings.", Toast.LENGTH_LONG).show() }
+            callback(null); return
+        }
+        val provider = prefs.getString("api_provider", "gemini") ?: "gemini"
+        val userContent = if (isDirect) "$prompt\n\nText: $text" else "Rephrase this exact text as instructed: [$text]"
+        when (provider) {
+            "claude" -> callClaude(key, prompt, userContent, isDirect, callback)
+            "openai" -> callOpenAI(key, prompt, userContent, isDirect, callback)
+            else -> callGemini(key, prompt, userContent, isDirect, callback)
+        }
+    }
+
+    private fun callClaude(key: String, prompt: String, userContent: String, isDirect: Boolean, callback: (String?) -> Unit) {
         val messages = JSONArray()
-        messages.put(JSONObject().put("role", "system").put("content", prompt))
-        messages.put(JSONObject().put("role", "user").put("content", "Rephrase this exact text as instructed: [$text]"))
+        messages.put(JSONObject().put("role", "user").put("content", if (isDirect) userContent else "$prompt\n\n$userContent"))
+        val body = JSONObject()
+        body.put("model", "claude-haiku-4-5-20251001")
+        body.put("max_tokens", 1000)
+        if (!isDirect) body.put("system", prompt)
+        body.put("messages", messages)
+        val req = Request.Builder()
+            .url("https://api.anthropic.com/v1/messages")
+            .addHeader("Content-Type", "application/json")
+            .addHeader("x-api-key", key)
+            .addHeader("anthropic-version", "2023-06-01")
+            .post(body.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+        client.newCall(req).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) { callback(null) }
+            override fun onResponse(call: Call, response: Response) {
+                try {
+                    val json = JSONObject(response.body?.string() ?: "")
+                    callback(json.getJSONArray("content").getJSONObject(0).getString("text"))
+                } catch (e: Exception) { callback(null) }
+            }
+        })
+    }
+
+    private fun callOpenAI(key: String, prompt: String, userContent: String, isDirect: Boolean, callback: (String?) -> Unit) {
+        val messages = JSONArray()
+        if (!isDirect) messages.put(JSONObject().put("role", "system").put("content", prompt))
+        messages.put(JSONObject().put("role", "user").put("content", userContent))
         val body = JSONObject()
         body.put("model", "gpt-4o-mini")
         body.put("max_tokens", 1000)
         body.put("messages", messages)
-        makeRequest(body, callback)
-    }
-
-    private fun callApiDirect(text: String, prompt: String, callback: (String?) -> Unit) {
-        val key = prefs.getString("api_key", "") ?: ""
-        if (key.isEmpty()) { callback(null); return }
-        val messages = JSONArray()
-        messages.put(JSONObject().put("role", "system").put("content", "You are a helpful assistant. Answer the user question about the given text clearly and concisely."))
-        messages.put(JSONObject().put("role", "user").put("content", "$prompt\n\nText: $text"))
-        val body = JSONObject()
-        body.put("model", "gpt-4o-mini")
-        body.put("max_tokens", 1000)
-        body.put("messages", messages)
-        makeRequest(body, callback)
-    }
-
-    private fun makeRequest(body: JSONObject, callback: (String?) -> Unit) {
-        val key = prefs.getString("api_key", "") ?: ""
         val req = Request.Builder()
             .url("https://api.openai.com/v1/chat/completions")
             .addHeader("Content-Type", "application/json")
@@ -522,8 +493,33 @@ class RephraseAccessibilityService : AccessibilityService() {
             override fun onResponse(call: Call, response: Response) {
                 try {
                     val json = JSONObject(response.body?.string() ?: "")
-                    callback(json.getJSONArray("choices").getJSONObject(0)
-                        .getJSONObject("message").getString("content"))
+                    callback(json.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content"))
+                } catch (e: Exception) { callback(null) }
+            }
+        })
+    }
+
+    private fun callGemini(key: String, prompt: String, userContent: String, isDirect: Boolean, callback: (String?) -> Unit) {
+        val fullText = if (isDirect) userContent else "$prompt\n\n$userContent"
+        val parts = JSONArray()
+        parts.put(JSONObject().put("text", fullText))
+        val contentObj = JSONObject().put("parts", parts)
+        val contents = JSONArray()
+        contents.put(contentObj)
+        val body = JSONObject().put("contents", contents)
+        val req = Request.Builder()
+            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$key")
+            .addHeader("Content-Type", "application/json")
+            .post(body.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+        client.newCall(req).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) { callback(null) }
+            override fun onResponse(call: Call, response: Response) {
+                try {
+                    val json = JSONObject(response.body?.string() ?: "")
+                    callback(json.getJSONArray("candidates").getJSONObject(0)
+                        .getJSONObject("content").getJSONArray("parts")
+                        .getJSONObject(0).getString("text"))
                 } catch (e: Exception) { callback(null) }
             }
         })
