@@ -173,7 +173,6 @@ class RephraseAccessibilityService : AccessibilityService() {
     private fun selectAllAndCopy() {
         // Perform select all on active node
         activeNode?.performAction(AccessibilityNodeInfo.ACTION_SELECT)
-        activeNode?.performAction(AccessibilityNodeInfo.ACTION_SELECT_ALL)
         // Small delay then copy
         handler.postDelayed({
             activeNode?.performAction(AccessibilityNodeInfo.ACTION_COPY)
