@@ -18,6 +18,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -33,7 +34,6 @@ class RephraseAccessibilityService : AccessibilityService() {
     private var windowManager: WindowManager? = null
     private var bubbleView: View? = null
     private var fabView: View? = null
-    private var selectedText: String = ""
     private var activeNode: AccessibilityNodeInfo? = null
     private val handler = Handler(Looper.getMainLooper())
     private val client = OkHttpClient()
@@ -136,16 +136,6 @@ class RephraseAccessibilityService : AccessibilityService() {
                     }
                 } catch (e: Exception) {}
             }
-            AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED -> {
-                val source = event.source ?: return
-                val text = source.text?.toString() ?: return
-                val start = source.textSelectionStart
-                val end = source.textSelectionEnd
-                if (start >= 0 && end > start && end <= text.length) {
-                    selectedText = text.substring(start, end)
-                    activeNode = source
-                }
-            }
         }
     }
 
@@ -159,23 +149,48 @@ class RephraseAccessibilityService : AccessibilityService() {
         return null
     }
 
-    private fun getTextFromActiveField(): String {
-        if (selectedText.isNotEmpty()) return selectedText
+    private fun getTextFromField(): String {
+        // Try active node first
         activeNode?.let { node ->
             val text = node.text?.toString()
             if (!text.isNullOrEmpty()) return text
         }
+        // Try root window scan
         try {
             val root = rootInActiveWindow ?: return ""
             val node = findFocusedEditableNode(root)
-            val text = node?.text?.toString()
-            if (!text.isNullOrEmpty()) {
+            if (node != null) {
                 activeNode = node
-                return text
+                val text = node.text?.toString()
+                if (!text.isNullOrEmpty()) return text
             }
         } catch (e: Exception) {}
+        // Fallback to clipboard
         val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         return cb.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
+    }
+
+    private fun selectAllAndCopy() {
+        // Perform select all on active node
+        activeNode?.performAction(AccessibilityNodeInfo.ACTION_SELECT)
+        activeNode?.performAction(AccessibilityNodeInfo.ACTION_SELECT_ALL)
+        // Small delay then copy
+        handler.postDelayed({
+            activeNode?.performAction(AccessibilityNodeInfo.ACTION_COPY)
+        }, 200)
+    }
+
+    private fun pasteFromClipboard() {
+        // Paste into active field
+        activeNode?.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+        // If paste didn't work, try set text
+        handler.postDelayed({
+            val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val text = cb.primaryClip?.getItemAt(0)?.text?.toString() ?: return@postDelayed
+            val args = android.os.Bundle()
+            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+            activeNode?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        }, 300)
     }
 
     private fun showFab() {
@@ -229,10 +244,12 @@ class RephraseAccessibilityService : AccessibilityService() {
                 }
                 MotionEvent.ACTION_UP -> {
                     if (!isDragging) {
-                        val text = getTextFromActiveField()
+                        // Get text from field
+                        val text = getTextFromField()
                         if (text.isNotEmpty()) {
-                            selectedText = text
-                            showBubble()
+                            showBubble(text)
+                        } else {
+                            Toast.makeText(this, "No text found. Type something first!", Toast.LENGTH_SHORT).show()
                         }
                     }
                     true
@@ -274,8 +291,8 @@ class RephraseAccessibilityService : AccessibilityService() {
         return Pair(corrected, explanation)
     }
 
-    private fun showBubble() {
-        if (selectedText.isEmpty()) return
+    private fun showBubble(inputText: String) {
+        if (inputText.isEmpty()) return
         dismissBubble()
         val inflater = LayoutInflater.from(this)
         val bubLayout = inflater.inflate(R.layout.floating_bubble, null)
@@ -331,10 +348,27 @@ class RephraseAccessibilityService : AccessibilityService() {
             btnCloseTop.visibility = View.GONE
         }
 
+        fun pasteResult(text: String) {
+            // Put in clipboard
+            val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cb.setPrimaryClip(ClipData.newPlainText("rephrased", text))
+            // Try to paste directly
+            val args = android.os.Bundle()
+            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+            val success = activeNode?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args) ?: false
+            if (!success) {
+                // Try paste action
+                activeNode?.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+            }
+            handler.post {
+                Toast.makeText(this, "Copied! Long press to paste if needed.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         fun rephrase(prompt: String) {
             statusMsg.text = "Rephrasing..."
             resetResults()
-            callApiRephrase(selectedText, prompt) { result ->
+            callApiRephrase(inputText, prompt) { result ->
                 handler.post {
                     if (result != null) {
                         val options = parseOptions(result)
@@ -355,7 +389,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         fun checkGrammar() {
             statusMsg.text = "Checking grammar..."
             resetResults()
-            callApiRephrase(selectedText, grammarPrompt) { result ->
+            callApiRephrase(inputText, grammarPrompt) { result ->
                 handler.post {
                     if (result != null) {
                         val pair = parseGrammar(result)
@@ -368,7 +402,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                         btnCloseTop.visibility = View.VISIBLE
                         statusMsg.text = "Grammar check done"
                         btnUseGrammar.setOnClickListener {
-                            paste(corrected)
+                            pasteResult(corrected)
                             dismissBubble()
                         }
                     } else {
@@ -382,7 +416,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         fun askAi(prompt: String) {
             statusMsg.text = "Asking AI..."
             resetResults()
-            callApiDirect(selectedText, prompt) { result ->
+            callApiDirect(inputText, prompt) { result ->
                 handler.post {
                     if (result != null) {
                         askAiResult.text = result
@@ -429,30 +463,22 @@ class RephraseAccessibilityService : AccessibilityService() {
         btnOption1.setOnClickListener {
             var t = btnOption1.text.toString()
             if (t.startsWith("1. ")) t = t.substring(3)
-            paste(t); dismissBubble()
+            pasteResult(t); dismissBubble()
         }
         btnOption2.setOnClickListener {
             var t = btnOption2.text.toString()
             if (t.startsWith("2. ")) t = t.substring(3)
-            paste(t); dismissBubble()
+            pasteResult(t); dismissBubble()
         }
         btnOption3.setOnClickListener {
             var t = btnOption3.text.toString()
             if (t.startsWith("3. ")) t = t.substring(3)
-            paste(t); dismissBubble()
+            pasteResult(t); dismissBubble()
         }
 
         btnCloseTop.setOnClickListener { dismissBubble() }
 
         try { windowManager?.addView(bubLayout, params) } catch (e: Exception) {}
-    }
-
-    private fun paste(text: String) {
-        val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cb.setPrimaryClip(ClipData.newPlainText("rephrased", text))
-        val args = android.os.Bundle()
-        args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
-        activeNode?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
     private fun callApiRephrase(text: String, prompt: String, callback: (String?) -> Unit) {
