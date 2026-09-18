@@ -207,8 +207,8 @@ class RephraseAccessibilityService : AccessibilityService() {
             PixelFormat.TRANSLUCENT
         )
         params.gravity = Gravity.BOTTOM or Gravity.END
-        params.x = 16
-        params.y = 300
+        params.x = prefs.getInt("fab_x", 16)
+        params.y = prefs.getInt("fab_y", 300)
 
         val btn = fabLayout.findViewById<Button>(R.id.fab_rephrase)
 
@@ -237,7 +237,10 @@ class RephraseAccessibilityService : AccessibilityService() {
                         isDragging = true
                         params.x = startPX - deltaX.toInt()
                         params.y = startPY - deltaY.toInt()
-                        try { windowManager?.updateViewLayout(fabLayout, params) } catch (e: Exception) {}
+                      try {
+                     windowManager?.updateViewLayout(fabLayout, params)
+                     prefs.edit().putInt("fab_x", params.x).putInt("fab_y", params.y).apply()
+                     } catch (e: Exception) {}
                     }
                     true
                 }
