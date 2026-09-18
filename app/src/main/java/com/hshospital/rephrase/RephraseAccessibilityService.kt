@@ -1,8 +1,8 @@
 package com.hshospital.rephrase
 
 import android.accessibilityservice.AccessibilityService
-import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ClipData
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.PixelFormat
@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
@@ -27,12 +28,14 @@ import java.io.IOException
 class RephraseAccessibilityService : AccessibilityService() {
     private var windowManager: WindowManager? = null
     private var bubbleView: View? = null
+    private var fabView: View? = null
     private var selectedText: String = ""
     private var activeNode: AccessibilityNodeInfo? = null
     private val handler = Handler(Looper.getMainLooper())
     private val client = OkHttpClient()
     private lateinit var prefs: SharedPreferences
     private var isDisabledForApp = false
+    private var isKeyboardVisible = false
 
     companion object {
         var isEnabled = true
@@ -94,39 +97,177 @@ class RephraseAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (!isEnabled) return
-
         val pkg = event?.packageName?.toString() ?: ""
 
         if (blockedApps.contains(pkg)) {
             if (!isDisabledForApp) {
                 isDisabledForApp = true
                 dismissBubble()
-                val info = serviceInfo
-                info.eventTypes = 0
-                serviceInfo = info
+                dismissFab()
             }
             return
         } else {
             if (isDisabledForApp) {
                 isDisabledForApp = false
-                val info = serviceInfo
-                info.eventTypes = AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED or
-                        AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-                serviceInfo = info
             }
         }
 
-        if (event?.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED) {
-            val source = event.source ?: return
-            val text = source.text?.toString() ?: return
-            val start = source.textSelectionStart
-            val end = source.textSelectionEnd
-            if (start >= 0 && end > start && end <= text.length) {
-                selectedText = text.substring(start, end)
-                activeNode = source
-                handler.removeCallbacksAndMessages(null)
-                handler.postDelayed({ showBubble() }, 300)
+        when (event?.eventType) {
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                val source = event.source
+                if (source != null) {
+                    // Check if keyboard appeared by looking for focused editable field
+                    val focusedNode = findFocusedEditableNode(source)
+                    if (focusedNode != null) {
+                        if (!isKeyboardVisible) {
+                            isKeyboardVisible = true
+                            activeNode = focusedNode
+                            handler.postDelayed({ showFab() }, 500)
+                        }
+                    }
+                }
             }
+            AccessibilityEvent.TYPE_VIEW_FOCUSED -> {
+                val source = event.source ?: return
+                if (source.isEditable) {
+                    activeNode = source
+                    isKeyboardVisible = true
+                    handler.postDelayed({ showFab() }, 500)
+                }
+            }
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                // Update active node if focused editable exists
+                val root = rootInActiveWindow ?: return
+                val focusedNode = findFocusedEditableNode(root)
+                if (focusedNode != null) {
+                    activeNode = focusedNode
+                    if (!isKeyboardVisible) {
+                        isKeyboardVisible = true
+                        handler.postDelayed({ showFab() }, 500)
+                    }
+                } else {
+                    if (isKeyboardVisible) {
+                        isKeyboardVisible = false
+                        handler.postDelayed({ dismissFab() }, 300)
+                    }
+                }
+            }
+            AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED -> {
+                val source = event.source ?: return
+                val text = source.text?.toString() ?: return
+                val start = source.textSelectionStart
+                val end = source.textSelectionEnd
+                if (start >= 0 && end > start && end <= text.length) {
+                    selectedText = text.substring(start, end)
+                    activeNode = source
+                }
+            }
+        }
+    }
+
+    private fun findFocusedEditableNode(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        if (node.isFocused && node.isEditable) return node
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val result = findFocusedEditableNode(child)
+            if (result != null) return result
+        }
+        return null
+    }
+
+    private fun getTextFromActiveField(): String {
+        // Try selected text first
+        if (selectedText.isNotEmpty()) return selectedText
+        // Try active node text
+        activeNode?.let { node ->
+            val text = node.text?.toString()
+            if (!text.isNullOrEmpty()) return text
+        }
+        // Try root window scan
+        try {
+            val root = rootInActiveWindow ?: return ""
+            val node = findFocusedEditableNode(root)
+            val text = node?.text?.toString()
+            if (!text.isNullOrEmpty()) {
+                activeNode = node
+                return text
+            }
+        } catch (e: Exception) {}
+        // Fallback to clipboard
+        val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        return cb.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
+    }
+
+    private fun showFab() {
+        if (!isEnabled) return
+        if (fabView != null) return
+        val inflater = LayoutInflater.from(this)
+        val view = inflater.inflate(R.layout.floating_button, null)
+        fabView = view
+
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        )
+        params.gravity = Gravity.BOTTOM or Gravity.END
+        params.x = 16
+        params.y = 300
+
+        val btn = view.findViewById<Button>(R.id.fab_rephrase)
+
+        // Drag support
+        var startX = 0f
+        var startY = 0f
+        var startParamsX = 0
+        var startParamsY = 0
+        var isDragging = false
+
+        btn.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    startX = event.rawX
+                    startY = event.rawY
+                    startParamsX = params.x
+                    startParamsY = params.y
+                    isDragging = false
+                    false
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - startX
+                    val dy = event.rawY - startY
+                    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                        isDragging = true
+                        params.x = (startParamsX - dx).toInt()
+                        params.y = (startParamsY - dy).toInt()
+                        try { windowManager?.updateViewLayout(view, params) } catch (e: Exception) {}
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!isDragging) {
+                        // It's a tap — show bubble
+                        val text = getTextFromActiveField()
+                        if (text.isNotEmpty()) {
+                            selectedText = text
+                            showBubble()
+                        }
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+
+        try { windowManager?.addView(view, params) } catch (e: Exception) {}
+    }
+
+    private fun dismissFab() {
+        fabView?.let {
+            try { windowManager?.removeView(it) } catch (e: Exception) {}
+            fabView = null
         }
     }
 
@@ -155,7 +296,6 @@ class RephraseAccessibilityService : AccessibilityService() {
 
     private fun showBubble() {
         if (selectedText.isEmpty()) return
-        if (!isEnabled) return
         dismissBubble()
         val inflater = LayoutInflater.from(this)
         val view = inflater.inflate(R.layout.floating_bubble, null)
@@ -395,6 +535,6 @@ class RephraseAccessibilityService : AccessibilityService() {
         }
     }
 
-    override fun onInterrupt() { dismissBubble() }
-    override fun onDestroy() { dismissBubble(); super.onDestroy() }
+    override fun onInterrupt() { dismissBubble(); dismissFab() }
+    override fun onDestroy() { dismissBubble(); dismissFab(); super.onDestroy() }
 }
