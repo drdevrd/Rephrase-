@@ -547,26 +547,30 @@ class RephraseAccessibilityService : AccessibilityService() {
     }
 
     private fun callGemini(key: String, prompt: String, userContent: String, isDirect: Boolean, callback: (String?) -> Unit) {
-        geminiAttempt(key, prompt, userContent, isDirect, callback, attempt = 1, useThinkingConfig = true)
+        geminiAttempt(key, prompt, userContent, isDirect, callback, attempt = 1, useThinkingConfig = true, modelIndex = 0)
     }
+
+    // Fast Lite model first (auto-updating alias); full Flash as fallback if the alias 404s
+    private val geminiModels = listOf("gemini-flash-lite-latest", "gemini-3.6-flash")
 
     // Retries 429/500/503 ("busy") with backoff; drops thinkingConfig if the model rejects it
     private fun geminiAttempt(
         key: String, prompt: String, userContent: String, isDirect: Boolean,
-        callback: (String?) -> Unit, attempt: Int, useThinkingConfig: Boolean
+        callback: (String?) -> Unit, attempt: Int, useThinkingConfig: Boolean, modelIndex: Int
     ) {
+        val model = geminiModels[modelIndex]
         val maxAttempts = 3
         val fullText = if (isDirect) userContent else "$prompt\n\n$userContent"
         val parts = JSONArray().put(JSONObject().put("text", fullText))
         val contents = JSONArray().put(JSONObject().put("parts", parts))
         val body = JSONObject().put("contents", contents)
         if (useThinkingConfig) {
-            // Keep thinking low so short rephrases return fast
+            // Minimal thinking = fastest response for short rephrases
             body.put("generationConfig", JSONObject()
-                .put("thinkingConfig", JSONObject().put("thinkingLevel", "low")))
+                .put("thinkingConfig", JSONObject().put("thinkingLevel", "minimal")))
         }
         val req = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent")
+            .url("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent")
             .addHeader("Content-Type", "application/json")
             .addHeader("x-goog-api-key", key)
             .post(body.toString().toRequestBody("application/json".toMediaType()))
@@ -579,7 +583,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                     "Gemini $reason — retrying ($attempt/$maxAttempts)…", Toast.LENGTH_SHORT).show()
             }
             handler.postDelayed({
-                geminiAttempt(key, prompt, userContent, isDirect, callback, attempt + 1, useThinkingConfig)
+                geminiAttempt(key, prompt, userContent, isDirect, callback, attempt + 1, useThinkingConfig, modelIndex)
             }, delayMs)
         }
 
@@ -596,7 +600,12 @@ class RephraseAccessibilityService : AccessibilityService() {
                     val code = response.code
                     // Model doesn't accept thinkingConfig → resend without it (doesn't count as a retry)
                     if (code == 400 && useThinkingConfig && bodyStr.contains("thinking", ignoreCase = true)) {
-                        geminiAttempt(key, prompt, userContent, isDirect, callback, attempt, useThinkingConfig = false)
+                        geminiAttempt(key, prompt, userContent, isDirect, callback, attempt, useThinkingConfig = false, modelIndex = modelIndex)
+                        return
+                    }
+                    // Model retired/unknown → try the next model in the list
+                    if (code == 404 && modelIndex + 1 < geminiModels.size) {
+                        geminiAttempt(key, prompt, userContent, isDirect, callback, 1, useThinkingConfig = true, modelIndex = modelIndex + 1)
                         return
                     }
                     if ((code == 429 || code == 500 || code == 503) && attempt < maxAttempts) {
