@@ -36,7 +36,11 @@ class RephraseAccessibilityService : AccessibilityService() {
     private var fabView: View? = null
     private var activeNode: AccessibilityNodeInfo? = null
     private val handler = Handler(Looper.getMainLooper())
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
     private lateinit var prefs: SharedPreferences
     @Volatile private var lastApiError: String = ""
     private var isDisabledForApp = false
@@ -543,33 +547,77 @@ class RephraseAccessibilityService : AccessibilityService() {
     }
 
     private fun callGemini(key: String, prompt: String, userContent: String, isDirect: Boolean, callback: (String?) -> Unit) {
+        geminiAttempt(key, prompt, userContent, isDirect, callback, attempt = 1, useThinkingConfig = true)
+    }
+
+    // Retries 429/500/503 ("busy") with backoff; drops thinkingConfig if the model rejects it
+    private fun geminiAttempt(
+        key: String, prompt: String, userContent: String, isDirect: Boolean,
+        callback: (String?) -> Unit, attempt: Int, useThinkingConfig: Boolean
+    ) {
+        val maxAttempts = 3
         val fullText = if (isDirect) userContent else "$prompt\n\n$userContent"
-        val parts = JSONArray()
-        parts.put(JSONObject().put("text", fullText))
-        val contentObj = JSONObject().put("parts", parts)
-        val contents = JSONArray()
-        contents.put(contentObj)
+        val parts = JSONArray().put(JSONObject().put("text", fullText))
+        val contents = JSONArray().put(JSONObject().put("parts", parts))
         val body = JSONObject().put("contents", contents)
+        if (useThinkingConfig) {
+            // Keep thinking low so short rephrases return fast
+            body.put("generationConfig", JSONObject()
+                .put("thinkingConfig", JSONObject().put("thinkingLevel", "low")))
+        }
         val req = Request.Builder()
             .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent")
             .addHeader("Content-Type", "application/json")
             .addHeader("x-goog-api-key", key)
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
+
+        fun retryLater(reason: String) {
+            val delayMs = 1500L * attempt
+            handler.post {
+                Toast.makeText(this@RephraseAccessibilityService,
+                    "Gemini $reason — retrying ($attempt/$maxAttempts)…", Toast.LENGTH_SHORT).show()
+            }
+            handler.postDelayed({
+                geminiAttempt(key, prompt, userContent, isDirect, callback, attempt + 1, useThinkingConfig)
+            }, delayMs)
+        }
+
         client.newCall(req).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                if (attempt < maxAttempts) { retryLater("timeout"); return }
                 lastApiError = "Gemini network error: ${e.message}"
                 handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
                 callback(null)
             }
             override fun onResponse(call: Call, response: Response) {
                 val bodyStr = response.body?.string() ?: ""
-                if (!response.isSuccessful) { reportApiError("Gemini", response, bodyStr); callback(null); return }
+                if (!response.isSuccessful) {
+                    val code = response.code
+                    // Model doesn't accept thinkingConfig → resend without it (doesn't count as a retry)
+                    if (code == 400 && useThinkingConfig && bodyStr.contains("thinking", ignoreCase = true)) {
+                        geminiAttempt(key, prompt, userContent, isDirect, callback, attempt, useThinkingConfig = false)
+                        return
+                    }
+                    if ((code == 429 || code == 500 || code == 503) && attempt < maxAttempts) {
+                        retryLater("busy ($code)"); return
+                    }
+                    reportApiError("Gemini", response, bodyStr); callback(null); return
+                }
                 try {
                     val json = JSONObject(bodyStr)
-                    callback(json.getJSONArray("candidates").getJSONObject(0)
+                    val respParts = json.getJSONArray("candidates").getJSONObject(0)
                         .getJSONObject("content").getJSONArray("parts")
-                        .getJSONObject(0).getString("text"))
+                    // Skip any "thought" parts; join the actual answer text
+                    val sb = StringBuilder()
+                    for (i in 0 until respParts.length()) {
+                        val part = respParts.getJSONObject(i)
+                        if (part.optBoolean("thought", false)) continue
+                        sb.append(part.optString("text", ""))
+                    }
+                    val text = sb.toString().trim()
+                    if (text.isEmpty()) throw IllegalStateException("empty")
+                    callback(text)
                 } catch (e: Exception) {
                     lastApiError = "Gemini: unexpected response format"
                     handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
