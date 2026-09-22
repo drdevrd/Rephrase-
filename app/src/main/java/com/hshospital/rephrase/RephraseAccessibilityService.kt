@@ -468,13 +468,17 @@ class RephraseAccessibilityService : AccessibilityService() {
         val shortMsg = try {
             val json = JSONObject(bodyStr)
             when {
-                json.has("error") && json.get("error") is JSONObject ->
-                    json.getJSONObject("error").optString("message", bodyStr)
+                json.has("error") && json.get("error") is JSONObject -> {
+                    val err = json.getJSONObject("error")
+                    val base = err.optString("message", bodyStr)
+                    val det = err.optJSONArray("details")?.toString() ?: ""
+                    if (det.isNotEmpty()) "$base | $det" else base
+                }
                 json.has("error") -> json.optString("error", bodyStr)
                 else -> bodyStr
             }
         } catch (e: Exception) { bodyStr }
-        val trimmed = if (shortMsg.length > 200) shortMsg.substring(0, 200) + "…" else shortMsg
+        val trimmed = if (shortMsg.length > 400) shortMsg.substring(0, 400) + "…" else shortMsg
         lastApiError = "$provider $code: $trimmed"
         handler.post {
             Toast.makeText(this, "$provider error $code: $trimmed", Toast.LENGTH_LONG).show()
@@ -570,7 +574,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         val maxAttempts = 2
         val fullText = if (isDirect) userContent else "$prompt\n\n$userContent"
         val parts = JSONArray().put(JSONObject().put("text", fullText))
-        val contents = JSONArray().put(JSONObject().put("parts", parts))
+        val contents = JSONArray().put(JSONObject().put("role", "user").put("parts", parts))
         val body = JSONObject().put("contents", contents)
         if (useGenConfig) body.put("generationConfig", JSONObject().put("maxOutputTokens", 500))
         val req = Request.Builder()
@@ -608,8 +612,8 @@ class RephraseAccessibilityService : AccessibilityService() {
                         geminiAttempt(key, prompt, userContent, isDirect, callback, attempt, modelIndex, startedAt, useGenConfig = false)
                         return
                     }
-                    // Model retired/unknown → try the next model in the list
-                    if (code == 404 && modelIndex + 1 < geminiModels.size) {
+                    // Model rejects request or is retired → try the next model in the list
+                    if ((code == 400 || code == 404) && modelIndex + 1 < geminiModels.size) {
                         geminiAttempt(key, prompt, userContent, isDirect, callback, 1, modelIndex + 1, startedAt)
                         return
                     }
