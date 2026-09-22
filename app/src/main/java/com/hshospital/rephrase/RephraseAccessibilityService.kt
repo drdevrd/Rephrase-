@@ -562,7 +562,7 @@ class RephraseAccessibilityService : AccessibilityService() {
     }
 
     // Fast Lite model first (auto-updating alias); full Flash as fallback if the alias 404s
-    private val geminiModels = listOf("gemini-flash-lite-latest", "gemini-3.6-flash")
+    private val geminiModels = listOf("gemini-3.6-flash")
 
     // One retry on network failure/busy; on 400 resend once without generationConfig
     private fun geminiAttempt(
