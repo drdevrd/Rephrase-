@@ -22,6 +22,7 @@ import android.widget.Toast
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Dns
+import java.net.InetAddress
 import java.net.Inet4Address
 import okhttp3.OkHttpClient
 import okhttp3.Request
