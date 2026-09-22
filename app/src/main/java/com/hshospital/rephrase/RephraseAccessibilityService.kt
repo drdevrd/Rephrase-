@@ -560,10 +560,11 @@ class RephraseAccessibilityService : AccessibilityService() {
     // Fast Lite model first (auto-updating alias); full Flash as fallback if the alias 404s
     private val geminiModels = listOf("gemini-flash-lite-latest", "gemini-3.6-flash")
 
-    // One retry on network failure/busy; thinkingBudget=0 disables extended thinking in a single request (no probe round-trip)
+    // One retry on network failure/busy; on 400 resend once without generationConfig
     private fun geminiAttempt(
         key: String, prompt: String, userContent: String, isDirect: Boolean,
-        callback: (String?) -> Unit, attempt: Int, modelIndex: Int, startedAt: Long
+        callback: (String?) -> Unit, attempt: Int, modelIndex: Int, startedAt: Long,
+        useGenConfig: Boolean = true
     ) {
         val model = geminiModels[modelIndex]
         val maxAttempts = 2
@@ -571,9 +572,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         val parts = JSONArray().put(JSONObject().put("text", fullText))
         val contents = JSONArray().put(JSONObject().put("parts", parts))
         val body = JSONObject().put("contents", contents)
-            .put("generationConfig", JSONObject()
-                .put("thinkingConfig", JSONObject().put("thinkingBudget", 0))
-                .put("maxOutputTokens", 500))
+        if (useGenConfig) body.put("generationConfig", JSONObject().put("maxOutputTokens", 500))
         val req = Request.Builder()
             .url("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent")
             .addHeader("Content-Type", "application/json")
@@ -589,7 +588,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                     "Gemini $reason after ${elapsed()} — retrying…", Toast.LENGTH_SHORT).show()
             }
             handler.postDelayed({
-                geminiAttempt(key, prompt, userContent, isDirect, callback, attempt + 1, modelIndex, startedAt)
+                geminiAttempt(key, prompt, userContent, isDirect, callback, attempt + 1, modelIndex, startedAt, useGenConfig)
             }, 800L)
         }
 
@@ -604,6 +603,11 @@ class RephraseAccessibilityService : AccessibilityService() {
                 val bodyStr = response.body?.string() ?: ""
                 if (!response.isSuccessful) {
                     val code = response.code
+                    // Model rejected a config field → resend once with bare request
+                    if (code == 400 && useGenConfig) {
+                        geminiAttempt(key, prompt, userContent, isDirect, callback, attempt, modelIndex, startedAt, useGenConfig = false)
+                        return
+                    }
                     // Model retired/unknown → try the next model in the list
                     if (code == 404 && modelIndex + 1 < geminiModels.size) {
                         geminiAttempt(key, prompt, userContent, isDirect, callback, 1, modelIndex + 1, startedAt)
