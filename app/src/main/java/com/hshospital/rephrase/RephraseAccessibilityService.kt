@@ -43,6 +43,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         .build()
     private lateinit var prefs: SharedPreferences
     @Volatile private var lastApiError: String = ""
+    @Volatile private var lastCallMs: Long = 0
     private var isDisabledForApp = false
     private var isKeyboardVisible = false
 
@@ -341,7 +342,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                         btnOption3.text = "3. ${options.getOrElse(2) { "" }}"
                         optionsScroll.visibility = View.VISIBLE
                         btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "Tap an option to use it"
+                        statusMsg.text = "Tap an option to use it (${lastCallMs}ms)"
                     } else {
                         statusMsg.text = if (lastApiError.isNotEmpty()) lastApiError else "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
@@ -363,7 +364,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                         grammarScroll.visibility = View.VISIBLE
                         btnUseGrammar.visibility = View.VISIBLE
                         btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "Grammar check done"
+                        statusMsg.text = "Grammar check done (${lastCallMs}ms)"
                         btnUseGrammar.setOnClickListener {
                             pasteResult(corrected)
                             dismissBubble()
@@ -384,7 +385,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                         askAiResult.text = result
                         askAiScroll.visibility = View.VISIBLE
                         btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "AI Response"
+                        statusMsg.text = "AI Response (${lastCallMs}ms)"
                     } else {
                         statusMsg.text = if (lastApiError.isNotEmpty()) lastApiError else "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
@@ -440,6 +441,11 @@ class RephraseAccessibilityService : AccessibilityService() {
     // Unified API caller — picks provider from prefs
     private fun callApi(text: String, prompt: String, isDirect: Boolean, callback: (String?) -> Unit) {
         lastApiError = ""
+        val callStart = System.currentTimeMillis()
+        val timedCallback: (String?) -> Unit = { result ->
+            lastCallMs = System.currentTimeMillis() - callStart
+            callback(result)
+        }
         val provider = prefs.getString("api_provider", "gemini") ?: "gemini"
         // Per-provider key, falling back to the old shared key for installs not yet migrated
         var key = prefs.getString("api_key_$provider", "") ?: ""
@@ -450,9 +456,9 @@ class RephraseAccessibilityService : AccessibilityService() {
         }
         val userContent = if (isDirect) "$prompt\n\nText: $text" else "Rephrase this exact text as instructed: [$text]"
         when (provider) {
-            "claude" -> callClaude(key, prompt, userContent, isDirect, callback)
-            "openai" -> callOpenAI(key, prompt, userContent, isDirect, callback)
-            else -> callGemini(key, prompt, userContent, isDirect, callback)
+            "claude" -> callClaude(key, prompt, userContent, isDirect, timedCallback)
+            "openai" -> callOpenAI(key, prompt, userContent, isDirect, timedCallback)
+            else -> callGemini(key, prompt, userContent, isDirect, timedCallback)
         }
     }
 
@@ -547,28 +553,27 @@ class RephraseAccessibilityService : AccessibilityService() {
     }
 
     private fun callGemini(key: String, prompt: String, userContent: String, isDirect: Boolean, callback: (String?) -> Unit) {
-        geminiAttempt(key, prompt, userContent, isDirect, callback, attempt = 1, useThinkingConfig = true, modelIndex = 0)
+        val startedAt = System.currentTimeMillis()
+        geminiAttempt(key, prompt, userContent, isDirect, callback, attempt = 1, modelIndex = 0, startedAt = startedAt)
     }
 
     // Fast Lite model first (auto-updating alias); full Flash as fallback if the alias 404s
     private val geminiModels = listOf("gemini-flash-lite-latest", "gemini-3.6-flash")
 
-    // Retries 429/500/503 ("busy") with backoff; drops thinkingConfig if the model rejects it
+    // One retry on network failure/busy; thinkingBudget=0 disables extended thinking in a single request (no probe round-trip)
     private fun geminiAttempt(
         key: String, prompt: String, userContent: String, isDirect: Boolean,
-        callback: (String?) -> Unit, attempt: Int, useThinkingConfig: Boolean, modelIndex: Int
+        callback: (String?) -> Unit, attempt: Int, modelIndex: Int, startedAt: Long
     ) {
         val model = geminiModels[modelIndex]
-        val maxAttempts = 3
+        val maxAttempts = 2
         val fullText = if (isDirect) userContent else "$prompt\n\n$userContent"
         val parts = JSONArray().put(JSONObject().put("text", fullText))
         val contents = JSONArray().put(JSONObject().put("parts", parts))
         val body = JSONObject().put("contents", contents)
-        if (useThinkingConfig) {
-            // Minimal thinking = fastest response for short rephrases
-            body.put("generationConfig", JSONObject()
-                .put("thinkingConfig", JSONObject().put("thinkingLevel", "minimal")))
-        }
+            .put("generationConfig", JSONObject()
+                .put("thinkingConfig", JSONObject().put("thinkingBudget", 0))
+                .put("maxOutputTokens", 500))
         val req = Request.Builder()
             .url("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent")
             .addHeader("Content-Type", "application/json")
@@ -576,21 +581,22 @@ class RephraseAccessibilityService : AccessibilityService() {
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
 
+        fun elapsed() = "${(System.currentTimeMillis() - startedAt)}ms"
+
         fun retryLater(reason: String) {
-            val delayMs = 1500L * attempt
             handler.post {
                 Toast.makeText(this@RephraseAccessibilityService,
-                    "Gemini $reason — retrying ($attempt/$maxAttempts)…", Toast.LENGTH_SHORT).show()
+                    "Gemini $reason after ${elapsed()} — retrying…", Toast.LENGTH_SHORT).show()
             }
             handler.postDelayed({
-                geminiAttempt(key, prompt, userContent, isDirect, callback, attempt + 1, useThinkingConfig, modelIndex)
-            }, delayMs)
+                geminiAttempt(key, prompt, userContent, isDirect, callback, attempt + 1, modelIndex, startedAt)
+            }, 800L)
         }
 
         client.newCall(req).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 if (attempt < maxAttempts) { retryLater("timeout"); return }
-                lastApiError = "Gemini network error: ${e.message}"
+                lastApiError = "Gemini network error after ${elapsed()}: ${e.message}"
                 handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
                 callback(null)
             }
@@ -598,20 +604,15 @@ class RephraseAccessibilityService : AccessibilityService() {
                 val bodyStr = response.body?.string() ?: ""
                 if (!response.isSuccessful) {
                     val code = response.code
-                    // Model doesn't accept thinkingConfig → resend without it (doesn't count as a retry)
-                    if (code == 400 && useThinkingConfig && bodyStr.contains("thinking", ignoreCase = true)) {
-                        geminiAttempt(key, prompt, userContent, isDirect, callback, attempt, useThinkingConfig = false, modelIndex = modelIndex)
-                        return
-                    }
                     // Model retired/unknown → try the next model in the list
                     if (code == 404 && modelIndex + 1 < geminiModels.size) {
-                        geminiAttempt(key, prompt, userContent, isDirect, callback, 1, useThinkingConfig = true, modelIndex = modelIndex + 1)
+                        geminiAttempt(key, prompt, userContent, isDirect, callback, 1, modelIndex + 1, startedAt)
                         return
                     }
                     if ((code == 429 || code == 500 || code == 503) && attempt < maxAttempts) {
                         retryLater("busy ($code)"); return
                     }
-                    reportApiError("Gemini", response, bodyStr); callback(null); return
+                    reportApiError("Gemini (${elapsed()})", response, bodyStr); callback(null); return
                 }
                 try {
                     val json = JSONObject(bodyStr)
@@ -626,9 +627,12 @@ class RephraseAccessibilityService : AccessibilityService() {
                     }
                     val text = sb.toString().trim()
                     if (text.isEmpty()) throw IllegalStateException("empty")
+                    handler.post {
+                        Toast.makeText(this@RephraseAccessibilityService, "Gemini ($model) — ${elapsed()}", Toast.LENGTH_SHORT).show()
+                    }
                     callback(text)
                 } catch (e: Exception) {
-                    lastApiError = "Gemini: unexpected response format"
+                    lastApiError = "Gemini: unexpected response format (${elapsed()})"
                     handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
                     callback(null)
                 }
