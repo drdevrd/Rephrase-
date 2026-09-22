@@ -21,6 +21,8 @@ import android.widget.TextView
 import android.widget.Toast
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.Dns
+import java.net.Inet4Address
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -36,10 +38,21 @@ class RephraseAccessibilityService : AccessibilityService() {
     private var fabView: View? = null
     private var activeNode: AccessibilityNodeInfo? = null
     private val handler = Handler(Looper.getMainLooper())
+    // Many Indian mobile networks have a broken/black-holed IPv6 route to Google's API endpoints:
+    // the first connection attempt silently stalls until connectTimeout, and only the fallback
+    // (IPv4) attempt succeeds. Forcing IPv4-only here removes that stall entirely.
+    private val ipv4OnlyDns = object : Dns {
+        override fun lookup(hostname: String): List<InetAddress> {
+            val all = Dns.SYSTEM.lookup(hostname)
+            val v4 = all.filterIsInstance<Inet4Address>()
+            return if (v4.isNotEmpty()) v4 else all
+        }
+    }
     private val client = OkHttpClient.Builder()
-        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-        .writeTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+        .dns(ipv4OnlyDns)
+        .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
         .build()
     private lateinit var prefs: SharedPreferences
     @Volatile private var lastApiError: String = ""
