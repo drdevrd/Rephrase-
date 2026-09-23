@@ -473,10 +473,12 @@ class RephraseAccessibilityService : AccessibilityService() {
             callback(null); return
         }
 
-        // Race pattern for Gemini: start Gemini now, start OpenAI as backup after 8s if Gemini hasn't answered.
-        // Whichever succeeds first wins; the loser is ignored. If Gemini fails outright, OpenAI's result is used.
+        // Race pattern for Gemini: start Gemini now, start OpenAI as backup after the configured
+        // timeout if Gemini hasn't answered. Whichever succeeds first wins; the loser is ignored.
+        // If Gemini fails outright, OpenAI's result is used. Set gemini_fallback_secs = 0 to disable.
         if (provider == "gemini") {
-            val openAiKey = keyFor("openai")
+            val fallbackSecs = prefs.getInt("gemini_fallback_secs", 8)
+            val openAiKey = if (fallbackSecs > 0) keyFor("openai") else ""
             val done = java.util.concurrent.atomic.AtomicBoolean(false)
             fun finish(result: String?) {
                 if (done.compareAndSet(false, true)) {
@@ -489,18 +491,16 @@ class RephraseAccessibilityService : AccessibilityService() {
             callGemini(primaryKey, prompt, userContent, isDirect) { result ->
                 if (result != null) finish(result) else {
                     geminiFailed = true
-                    // If OpenAI backup hasn't been triggered yet and no key, we're done with a failure
                     if (openAiKey.isEmpty() && !done.get()) finish(null)
                 }
             }
-            // OpenAI backup timer (only if a key is available)
+            // OpenAI backup timer (only if enabled and a key is available)
             if (openAiKey.isNotEmpty()) {
                 handler.postDelayed({
                     if (!done.get()) {
-                        // Fire OpenAI in parallel; whichever finishes first wins via the same `done` guard
                         callOpenAI(openAiKey, prompt, userContent, isDirect) { r -> if (r != null) finish(r) else if (geminiFailed) finish(null) }
                     }
-                }, 8000)
+                }, fallbackSecs * 1000L)
             }
             return
         }
