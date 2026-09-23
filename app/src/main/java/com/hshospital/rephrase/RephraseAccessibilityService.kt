@@ -458,23 +458,61 @@ class RephraseAccessibilityService : AccessibilityService() {
         lastApiError = ""
         lastModelUsed = ""
         val callStart = System.currentTimeMillis()
+        val provider = prefs.getString("api_provider", "gemini") ?: "gemini"
+        val userContent = if (isDirect) "$prompt\n\nText: $text" else "Rephrase this exact text as instructed: [$text]"
+
+        fun keyFor(p: String): String {
+            var k = prefs.getString("api_key_$p", "") ?: ""
+            if (k.isEmpty()) k = prefs.getString("api_key", "") ?: ""
+            return k
+        }
+
+        val primaryKey = keyFor(provider)
+        if (primaryKey.isEmpty()) {
+            handler.post { Toast.makeText(this, "No API key set for $provider! Open RePhrase settings.", Toast.LENGTH_LONG).show() }
+            callback(null); return
+        }
+
+        // Race pattern for Gemini: start Gemini now, start OpenAI as backup after 8s if Gemini hasn't answered.
+        // Whichever succeeds first wins; the loser is ignored. If Gemini fails outright, OpenAI's result is used.
+        if (provider == "gemini") {
+            val openAiKey = keyFor("openai")
+            val done = java.util.concurrent.atomic.AtomicBoolean(false)
+            fun finish(result: String?) {
+                if (done.compareAndSet(false, true)) {
+                    lastCallMs = System.currentTimeMillis() - callStart
+                    callback(result)
+                }
+            }
+            // Gemini result
+            var geminiFailed = false
+            callGemini(primaryKey, prompt, userContent, isDirect) { result ->
+                if (result != null) finish(result) else {
+                    geminiFailed = true
+                    // If OpenAI backup hasn't been triggered yet and no key, we're done with a failure
+                    if (openAiKey.isEmpty() && !done.get()) finish(null)
+                }
+            }
+            // OpenAI backup timer (only if a key is available)
+            if (openAiKey.isNotEmpty()) {
+                handler.postDelayed({
+                    if (!done.get()) {
+                        // Fire OpenAI in parallel; whichever finishes first wins via the same `done` guard
+                        callOpenAI(openAiKey, prompt, userContent, isDirect) { r -> if (r != null) finish(r) else if (geminiFailed) finish(null) }
+                    }
+                }, 8000)
+            }
+            return
+        }
+
+        // Non-Gemini providers behave as before
         val timedCallback: (String?) -> Unit = { result ->
             lastCallMs = System.currentTimeMillis() - callStart
             callback(result)
         }
-        val provider = prefs.getString("api_provider", "gemini") ?: "gemini"
-        // Per-provider key, falling back to the old shared key for installs not yet migrated
-        var key = prefs.getString("api_key_$provider", "") ?: ""
-        if (key.isEmpty()) key = prefs.getString("api_key", "") ?: ""
-        if (key.isEmpty()) {
-            handler.post { Toast.makeText(this, "No API key set for $provider! Open RePhrase settings.", Toast.LENGTH_LONG).show() }
-            callback(null); return
-        }
-        val userContent = if (isDirect) "$prompt\n\nText: $text" else "Rephrase this exact text as instructed: [$text]"
         when (provider) {
-            "claude" -> callClaude(key, prompt, userContent, isDirect, timedCallback)
-            "openai" -> callOpenAI(key, prompt, userContent, isDirect, timedCallback)
-            else -> callGemini(key, prompt, userContent, isDirect, timedCallback)
+            "claude" -> callClaude(primaryKey, prompt, userContent, isDirect, timedCallback)
+            "openai" -> callOpenAI(primaryKey, prompt, userContent, isDirect, timedCallback)
         }
     }
 
@@ -562,6 +600,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                 if (!response.isSuccessful) { reportApiError("OpenAI", response, bodyStr); callback(null); return }
                 try {
                     val json = JSONObject(bodyStr)
+                    lastModelUsed = "gpt-4o-mini"
                     callback(json.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content"))
                 } catch (e: Exception) {
                     lastApiError = "OpenAI: unexpected response format"
