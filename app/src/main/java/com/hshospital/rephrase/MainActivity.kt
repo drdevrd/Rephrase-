@@ -23,6 +23,8 @@ class MainActivity : AppCompatActivity() {
         val rbClaude = findViewById<RadioButton>(R.id.rbClaude)
         val rbOpenAI = findViewById<RadioButton>(R.id.rbOpenAI)
         val saveProviderBtn = findViewById<Button>(R.id.saveProviderBtn)
+        val geminiTimeoutInput = findViewById<EditText>(R.id.geminiTimeoutInput)
+        val saveGeminiTimeoutBtn = findViewById<Button>(R.id.saveGeminiTimeoutBtn)
         val accessibilityBtn = findViewById<Button>(R.id.accessibilityBtn)
         val askAiPromptInput = findViewById<EditText>(R.id.askAiPromptInput)
         val saveAskAiBtn = findViewById<Button>(R.id.saveAskAiBtn)
@@ -35,6 +37,7 @@ class MainActivity : AppCompatActivity() {
 
         // Load saved values
         askAiPromptInput.setText(prefs.getString("ask_ai_prompt", ""))
+        geminiTimeoutInput.setText(prefs.getInt("gemini_fallback_secs", 8).toString())
         customName1.setText(prefs.getString("custom_name_1", ""))
         customPrompt1.setText(prefs.getString("custom_prompt_1", ""))
         customName2.setText(prefs.getString("custom_name_2", ""))
@@ -85,6 +88,13 @@ class MainActivity : AppCompatActivity() {
             val provider = currentProvider()
             prefs.edit().putString("api_provider", provider).apply()
             Toast.makeText(this, "Provider saved: $provider", Toast.LENGTH_SHORT).show()
+        }
+
+        saveGeminiTimeoutBtn.setOnClickListener {
+            val secs = geminiTimeoutInput.text.toString().trim().toIntOrNull()?.coerceIn(0, 120) ?: 8
+            prefs.edit().putInt("gemini_fallback_secs", secs).apply()
+            geminiTimeoutInput.setText(secs.toString())
+            Toast.makeText(this, if (secs == 0) "Fallback disabled" else "Fallback after ${secs}s", Toast.LENGTH_SHORT).show()
         }
 
         accessibilityBtn.setOnClickListener {
