@@ -58,6 +58,7 @@ class RephraseAccessibilityService : AccessibilityService() {
     private lateinit var prefs: SharedPreferences
     @Volatile private var lastApiError: String = ""
     @Volatile private var lastCallMs: Long = 0
+    @Volatile private var lastModelUsed: String = ""
     private var isDisabledForApp = false
     private var isKeyboardVisible = false
 
@@ -356,7 +357,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                         btnOption3.text = "3. ${options.getOrElse(2) { "" }}"
                         optionsScroll.visibility = View.VISIBLE
                         btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "Tap an option to use it (${lastCallMs}ms)"
+                        statusMsg.text = "Tap an option to use it (${lastCallMs}ms${if (lastModelUsed.isNotEmpty()) " · " + lastModelUsed else ""})"
                     } else {
                         statusMsg.text = if (lastApiError.isNotEmpty()) lastApiError else "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
@@ -378,7 +379,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                         grammarScroll.visibility = View.VISIBLE
                         btnUseGrammar.visibility = View.VISIBLE
                         btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "Grammar check done (${lastCallMs}ms)"
+                        statusMsg.text = "Grammar check done (${lastCallMs}ms${if (lastModelUsed.isNotEmpty()) " · " + lastModelUsed else ""})"
                         btnUseGrammar.setOnClickListener {
                             pasteResult(corrected)
                             dismissBubble()
@@ -399,7 +400,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                         askAiResult.text = result
                         askAiScroll.visibility = View.VISIBLE
                         btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "AI Response (${lastCallMs}ms)"
+                        statusMsg.text = "AI Response (${lastCallMs}ms${if (lastModelUsed.isNotEmpty()) " · " + lastModelUsed else ""})"
                     } else {
                         statusMsg.text = if (lastApiError.isNotEmpty()) lastApiError else "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
@@ -455,6 +456,7 @@ class RephraseAccessibilityService : AccessibilityService() {
     // Unified API caller — picks provider from prefs
     private fun callApi(text: String, prompt: String, isDirect: Boolean, callback: (String?) -> Unit) {
         lastApiError = ""
+        lastModelUsed = ""
         val callStart = System.currentTimeMillis()
         val timedCallback: (String?) -> Unit = { result ->
             lastCallMs = System.currentTimeMillis() - callStart
@@ -585,12 +587,13 @@ class RephraseAccessibilityService : AccessibilityService() {
         useGenConfig: Boolean = true
     ) {
         val model = geminiModels[modelIndex]
+        lastModelUsed = model
         val maxAttempts = 2
         val fullText = if (isDirect) userContent else "$prompt\n\n$userContent"
         val parts = JSONArray().put(JSONObject().put("text", fullText))
         val contents = JSONArray().put(JSONObject().put("role", "user").put("parts", parts))
         val body = JSONObject().put("contents", contents)
-        if (useGenConfig) body.put("generationConfig", JSONObject().put("maxOutputTokens", 500))
+        if (useGenConfig) body.put("generationConfig", JSONObject().put("maxOutputTokens", 300))
         val req = Request.Builder()
             .url("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent")
             .addHeader("Content-Type", "application/json")
