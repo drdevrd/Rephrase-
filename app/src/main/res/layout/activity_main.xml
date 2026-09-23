@@ -1,185 +1,146 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#0d1117">
+package com.hshospital.rephrase
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.provider.Settings
+import android.widget.Button
+import android.widget.EditText
+import android.widget.RadioButton
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="RePhrase Settings"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="#58a6ff"
-            android:layout_marginBottom="24dp"/>
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="API Key" android:textColor="#c9d1d9" android:textSize="14sp"
-            android:layout_marginBottom="6dp"/>
-        <EditText
-            android:id="@+id/apiKeyInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Paste your API key here"
-            android:textColor="#ffffff"
-            android:textColorHint="#6e7681"
-            android:background="@drawable/input_bg"
-            android:padding="12dp"
-            android:inputType="textVisiblePassword"
-            android:layout_marginBottom="10dp"/>
-        <Button
-            android:id="@+id/saveApiKeyBtn"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="Save API Key"
-            android:backgroundTint="#1f6feb"
-            android:textAllCaps="false"
-            android:layout_marginBottom="20dp"/>
+        val prefs = getSharedPreferences("rephrase_prefs", Context.MODE_PRIVATE)
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="AI Provider" android:textColor="#c9d1d9" android:textSize="14sp"
-            android:layout_marginBottom="10dp"/>
+        val apiKeyInput = findViewById<EditText>(R.id.apiKeyInput)
+        val saveApiKeyBtn = findViewById<Button>(R.id.saveApiKeyBtn)
+        val rbGemini = findViewById<RadioButton>(R.id.rbGemini)
+        val rbClaude = findViewById<RadioButton>(R.id.rbClaude)
+        val rbOpenAI = findViewById<RadioButton>(R.id.rbOpenAI)
+        val saveProviderBtn = findViewById<Button>(R.id.saveProviderBtn)
+        val geminiTimeoutInput = findViewById<EditText>(R.id.geminiTimeoutInput)
+        val saveGeminiTimeoutBtn = findViewById<Button>(R.id.saveGeminiTimeoutBtn)
+        val accessibilityBtn = findViewById<Button>(R.id.accessibilityBtn)
+        val askAiPromptInput = findViewById<EditText>(R.id.askAiPromptInput)
+        val saveAskAiBtn = findViewById<Button>(R.id.saveAskAiBtn)
+        val customName1 = findViewById<EditText>(R.id.customName1)
+        val customPrompt1 = findViewById<EditText>(R.id.customPrompt1)
+        val customName2 = findViewById<EditText>(R.id.customName2)
+        val customPrompt2 = findViewById<EditText>(R.id.customPrompt2)
+        val customName3 = findViewById<EditText>(R.id.customName3)
+        val customPrompt3 = findViewById<EditText>(R.id.customPrompt3)
 
-        <RadioGroup
-            android:id="@+id/providerGroup"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="6dp">
-            <RadioButton
-                android:id="@+id/rbGemini"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:text="Gemini"
-                android:textColor="#c9d1d9"
-                android:buttonTint="#58a6ff"/>
-            <RadioButton
-                android:id="@+id/rbClaude"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:text="Claude"
-                android:textColor="#c9d1d9"
-                android:buttonTint="#58a6ff"/>
-            <RadioButton
-                android:id="@+id/rbOpenAI"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:text="OpenAI"
-                android:textColor="#c9d1d9"
-                android:buttonTint="#58a6ff"/>
-        </RadioGroup>
+        // Load saved values
+        askAiPromptInput.setText(prefs.getString("ask_ai_prompt", ""))
+        geminiTimeoutInput.setText(prefs.getInt("gemini_fallback_secs", 8).toString())
+        customName1.setText(prefs.getString("custom_name_1", ""))
+        customPrompt1.setText(prefs.getString("custom_prompt_1", ""))
+        customName2.setText(prefs.getString("custom_name_2", ""))
+        customPrompt2.setText(prefs.getString("custom_prompt_2", ""))
+        customName3.setText(prefs.getString("custom_name_3", ""))
+        customPrompt3.setText(prefs.getString("custom_prompt_3", ""))
 
-        <Button
-            android:id="@+id/saveProviderBtn"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="Save Provider"
-            android:backgroundTint="#238636"
-            android:textAllCaps="false"
-            android:layout_marginBottom="24dp"/>
+        // Load saved provider
+        val savedProvider = prefs.getString("api_provider", "gemini") ?: "gemini"
+        when (savedProvider) {
+            "claude" -> rbClaude.isChecked = true
+            "openai" -> rbOpenAI.isChecked = true
+            else -> rbGemini.isChecked = true
+        }
 
-        <Button
-            android:id="@+id/accessibilityBtn"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="Open Accessibility Settings"
-            android:backgroundTint="#6e40c9"
-            android:textAllCaps="false"
-            android:layout_marginBottom="24dp"/>
+        // Per-provider key helpers
+        fun keyPrefName(provider: String) = "api_key_$provider"
+        fun currentProvider(): String = when {
+            rbClaude.isChecked -> "claude"
+            rbOpenAI.isChecked -> "openai"
+            else -> "gemini"
+        }
+        fun loadKeyFor(provider: String) {
+            // Migrate the old single shared key into whichever provider was active at upgrade time
+            val legacy = prefs.getString("api_key", "") ?: ""
+            if (legacy.isNotEmpty() && provider == savedProvider &&
+                (prefs.getString(keyPrefName(provider), "") ?: "").isEmpty()) {
+                prefs.edit().putString(keyPrefName(provider), legacy).remove("api_key").apply()
+            }
+            apiKeyInput.setText(prefs.getString(keyPrefName(provider), ""))
+        }
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Ask AI - Custom Question" android:textColor="#c9d1d9" android:textSize="14sp"
-            android:layout_marginBottom="6dp"/>
-        <EditText
-            android:id="@+id/askAiPromptInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="e.g. Summarise this text in 2 lines"
-            android:textColor="#ffffff"
-            android:textColorHint="#6e7681"
-            android:background="@drawable/input_bg"
-            android:padding="12dp"
-            android:layout_marginBottom="10dp"/>
-        <Button
-            android:id="@+id/saveAskAiBtn"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="Save Question"
-            android:backgroundTint="#0e7490"
-            android:textAllCaps="false"
-            android:layout_marginBottom="24dp"/>
+        loadKeyFor(savedProvider)
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Custom Tone 1" android:textColor="#c9d1d9" android:textSize="14sp"
-            android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/customName1" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:hint="Button name (e.g. Empathetic)"
-            android:textColor="#ffffff" android:textColorHint="#6e7681"
-            android:background="@drawable/input_bg" android:padding="12dp" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/customPrompt1" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:hint="Instruction (e.g. Rewrite with empathy)"
-            android:textColor="#ffffff" android:textColorHint="#6e7681"
-            android:background="@drawable/input_bg" android:padding="12dp" android:layout_marginBottom="8dp"/>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:layout_marginBottom="20dp">
-            <Button android:id="@+id/saveCustom1" android:layout_width="0dp" android:layout_weight="1"
-                android:layout_height="48dp" android:text="Save" android:backgroundTint="#c05800"
-                android:textAllCaps="false" android:layout_marginEnd="8dp"/>
-            <Button android:id="@+id/deleteCustom1" android:layout_width="0dp" android:layout_weight="1"
-                android:layout_height="48dp" android:text="Delete" android:backgroundTint="#6e1c1c"
-                android:textAllCaps="false"/>
-        </LinearLayout>
+        // Swap the visible key field whenever the provider selection changes
+        rbGemini.setOnCheckedChangeListener { _, checked -> if (checked) loadKeyFor("gemini") }
+        rbClaude.setOnCheckedChangeListener { _, checked -> if (checked) loadKeyFor("claude") }
+        rbOpenAI.setOnCheckedChangeListener { _, checked -> if (checked) loadKeyFor("openai") }
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Custom Tone 2" android:textColor="#c9d1d9" android:textSize="14sp"
-            android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/customName2" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:hint="Button name"
-            android:textColor="#ffffff" android:textColorHint="#6e7681"
-            android:background="@drawable/input_bg" android:padding="12dp" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/customPrompt2" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:hint="Instruction"
-            android:textColor="#ffffff" android:textColorHint="#6e7681"
-            android:background="@drawable/input_bg" android:padding="12dp" android:layout_marginBottom="8dp"/>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:layout_marginBottom="20dp">
-            <Button android:id="@+id/saveCustom2" android:layout_width="0dp" android:layout_weight="1"
-                android:layout_height="48dp" android:text="Save" android:backgroundTint="#c05800"
-                android:textAllCaps="false" android:layout_marginEnd="8dp"/>
-            <Button android:id="@+id/deleteCustom2" android:layout_width="0dp" android:layout_weight="1"
-                android:layout_height="48dp" android:text="Delete" android:backgroundTint="#6e1c1c"
-                android:textAllCaps="false"/>
-        </LinearLayout>
+        saveApiKeyBtn.setOnClickListener {
+            val provider = currentProvider()
+            val key = apiKeyInput.text.toString().trim()
+            prefs.edit().putString(keyPrefName(provider), key).apply()
+            Toast.makeText(this, "API key saved for $provider", Toast.LENGTH_SHORT).show()
+        }
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Custom Tone 3" android:textColor="#c9d1d9" android:textSize="14sp"
-            android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/customName3" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:hint="Button name"
-            android:textColor="#ffffff" android:textColorHint="#6e7681"
-            android:background="@drawable/input_bg" android:padding="12dp" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/customPrompt3" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:hint="Instruction"
-            android:textColor="#ffffff" android:textColorHint="#6e7681"
-            android:background="@drawable/input_bg" android:padding="12dp" android:layout_marginBottom="8dp"/>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:layout_marginBottom="20dp">
-            <Button android:id="@+id/saveCustom3" android:layout_width="0dp" android:layout_weight="1"
-                android:layout_height="48dp" android:text="Save" android:backgroundTint="#c05800"
-                android:textAllCaps="false" android:layout_marginEnd="8dp"/>
-            <Button android:id="@+id/deleteCustom3" android:layout_width="0dp" android:layout_weight="1"
-                android:layout_height="48dp" android:text="Delete" android:backgroundTint="#6e1c1c"
-                android:textAllCaps="false"/>
-        </LinearLayout>
+        saveProviderBtn.setOnClickListener {
+            val provider = currentProvider()
+            prefs.edit().putString("api_provider", provider).apply()
+            Toast.makeText(this, "Provider saved: $provider", Toast.LENGTH_SHORT).show()
+        }
 
-    </LinearLayout>
-</ScrollView>
+        saveGeminiTimeoutBtn.setOnClickListener {
+            val secs = geminiTimeoutInput.text.toString().trim().toIntOrNull()?.coerceIn(0, 120) ?: 8
+            prefs.edit().putInt("gemini_fallback_secs", secs).apply()
+            geminiTimeoutInput.setText(secs.toString())
+            Toast.makeText(this, if (secs == 0) "Fallback disabled" else "Fallback after ${secs}s", Toast.LENGTH_SHORT).show()
+        }
+
+        accessibilityBtn.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+
+        saveAskAiBtn.setOnClickListener {
+            prefs.edit().putString("ask_ai_prompt", askAiPromptInput.text.toString().trim()).apply()
+            Toast.makeText(this, "Question saved!", Toast.LENGTH_SHORT).show()
+        }
+
+        findViewById<Button>(R.id.saveCustom1).setOnClickListener {
+            prefs.edit()
+                .putString("custom_name_1", customName1.text.toString().trim())
+                .putString("custom_prompt_1", customPrompt1.text.toString().trim())
+                .apply()
+            Toast.makeText(this, "Custom tone 1 saved!", Toast.LENGTH_SHORT).show()
+        }
+        findViewById<Button>(R.id.deleteCustom1).setOnClickListener {
+            prefs.edit().putString("custom_name_1", "").putString("custom_prompt_1", "").apply()
+            customName1.setText(""); customPrompt1.setText("")
+            Toast.makeText(this, "Custom tone 1 deleted!", Toast.LENGTH_SHORT).show()
+        }
+        findViewById<Button>(R.id.saveCustom2).setOnClickListener {
+            prefs.edit()
+                .putString("custom_name_2", customName2.text.toString().trim())
+                .putString("custom_prompt_2", customPrompt2.text.toString().trim())
+                .apply()
+            Toast.makeText(this, "Custom tone 2 saved!", Toast.LENGTH_SHORT).show()
+        }
+        findViewById<Button>(R.id.deleteCustom2).setOnClickListener {
+            prefs.edit().putString("custom_name_2", "").putString("custom_prompt_2", "").apply()
+            customName2.setText(""); customPrompt2.setText("")
+            Toast.makeText(this, "Custom tone 2 deleted!", Toast.LENGTH_SHORT).show()
+        }
+        findViewById<Button>(R.id.saveCustom3).setOnClickListener {
+            prefs.edit()
+                .putString("custom_name_3", customName3.text.toString().trim())
+                .putString("custom_prompt_3", customPrompt3.text.toString().trim())
+                .apply()
+            Toast.makeText(this, "Custom tone 3 saved!", Toast.LENGTH_SHORT).show()
+        }
+        findViewById<Button>(R.id.deleteCustom3).setOnClickListener {
+            prefs.edit().putString("custom_name_3", "").putString("custom_prompt_3", "").apply()
+            customName3.setText(""); customPrompt3.setText("")
+            Toast.makeText(this, "Custom tone 3 deleted!", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
