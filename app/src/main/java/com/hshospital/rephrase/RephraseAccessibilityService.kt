@@ -545,15 +545,27 @@ class RephraseAccessibilityService : AccessibilityService() {
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
         client.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { callback(null) }
+            override fun onFailure(call: Call, e: IOException) {
+                handler.post { Toast.makeText(this@RephraseAccessibilityService, "Network error: ${e.message}", Toast.LENGTH_LONG).show() }
+                callback(null)
+            }
             override fun onResponse(call: Call, response: Response) {
+                val responseStr = response.body?.string() ?: ""
                 try {
-                    val responseStr = response.body?.string() ?: ""
                     val json = JSONObject(responseStr)
+                    // Show HTTP error details if not 200
+                    if (!response.isSuccessful) {
+                        val errMsg = json.optJSONObject("error")?.optString("message") ?: "HTTP ${response.code}"
+                        handler.post { Toast.makeText(this@RephraseAccessibilityService, "Gemini: $errMsg", Toast.LENGTH_LONG).show() }
+                        callback(null); return
+                    }
                     callback(json.getJSONArray("candidates").getJSONObject(0)
                         .getJSONObject("content").getJSONArray("parts")
                         .getJSONObject(0).getString("text"))
-                } catch (e: Exception) { callback(null) }
+                } catch (e: Exception) {
+                    handler.post { Toast.makeText(this@RephraseAccessibilityService, "Parse error: ${responseStr.take(120)}", Toast.LENGTH_LONG).show() }
+                    callback(null)
+                }
             }
         })
     }
