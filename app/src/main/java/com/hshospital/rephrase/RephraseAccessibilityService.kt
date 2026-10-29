@@ -36,7 +36,12 @@ class RephraseAccessibilityService : AccessibilityService() {
     private var fabView: View? = null
     private var activeNode: AccessibilityNodeInfo? = null
     private val handler = Handler(Looper.getMainLooper())
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .callTimeout(90, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
     private lateinit var prefs: SharedPreferences
     private var isDisabledForApp = false
     private var isKeyboardVisible = false
