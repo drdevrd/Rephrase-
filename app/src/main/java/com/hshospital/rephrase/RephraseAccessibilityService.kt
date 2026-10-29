@@ -37,10 +37,10 @@ class RephraseAccessibilityService : AccessibilityService() {
     private var activeNode: AccessibilityNodeInfo? = null
     private val handler = Handler(Looper.getMainLooper())
     private val client = OkHttpClient.Builder()
-        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-        .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-        .callTimeout(90, java.util.concurrent.TimeUnit.SECONDS)
+        .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+        .callTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
         .build()
     private lateinit var prefs: SharedPreferences
     private var isDisabledForApp = false
@@ -548,10 +548,48 @@ class RephraseAccessibilityService : AccessibilityService() {
             callback(null); return
         }
         val userContent = if (isDirect) "$prompt\n\nText: $text" else "Rephrase this exact text as instructed: [$text]"
+
+        // Build fallback chain: primary provider first, then others that have keys saved
+        val allProviders = listOf("gemini", "claude", "openai")
+        val chain = (listOf(provider) + allProviders.filter { it != provider }).distinct()
+        val chainWithKeys = mutableListOf<Pair<String, String>>()
+        for (p in chain) {
+            val k = if (p == provider) key else {
+                val (k2, _, _) = findPrefValue(listOf("api_key_$p", "${p}_key", "${p}_api_key"))
+                k2
+            }
+            if (k.isNotEmpty()) chainWithKeys.add(p to k)
+        }
+        tryChain(chainWithKeys, prompt, userContent, isDirect, 0, callback)
+    }
+
+    // Recursive fallback: try each provider in order; on failure, move to the next
+    private fun tryChain(chain: List<Pair<String, String>>, prompt: String, userContent: String, isDirect: Boolean, index: Int, callback: (String?) -> Unit) {
+        if (index >= chain.size) {
+            // All providers failed
+            callback(null); return
+        }
+        val (provider, key) = chain[index]
+        handler.post {
+            Toast.makeText(this, "Trying $provider (${index + 1}/${chain.size})...", Toast.LENGTH_SHORT).show()
+        }
+        val wrapped: (String?) -> Unit = { result ->
+            if (result != null) {
+                callback(result)
+            } else {
+                // Fall through to next provider
+                handler.post {
+                    if (index + 1 < chain.size) {
+                        Toast.makeText(this, "$provider failed → trying ${chain[index + 1].first}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                tryChain(chain, prompt, userContent, isDirect, index + 1, callback)
+            }
+        }
         when (provider) {
-            "claude", "anthropic" -> callClaude(key, prompt, userContent, isDirect, callback)
-            "openai", "gpt" -> callOpenAI(key, prompt, userContent, isDirect, callback)
-            else -> callGemini(key, prompt, userContent, isDirect, callback)
+            "claude", "anthropic" -> callClaude(key, prompt, userContent, isDirect, wrapped)
+            "openai", "gpt" -> callOpenAI(key, prompt, userContent, isDirect, wrapped)
+            else -> callGemini(key, prompt, userContent, isDirect, wrapped)
         }
     }
 
@@ -571,12 +609,24 @@ class RephraseAccessibilityService : AccessibilityService() {
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
         client.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { callback(null) }
+            override fun onFailure(call: Call, e: IOException) {
+                lastErrorMsg = "Claude network: ${e.message}"
+                callback(null)
+            }
             override fun onResponse(call: Call, response: Response) {
+                val responseStr = response.body?.string() ?: ""
                 try {
-                    val json = JSONObject(response.body?.string() ?: "")
+                    val json = JSONObject(responseStr)
+                    if (!response.isSuccessful) {
+                        val errMsg = json.optJSONObject("error")?.optString("message") ?: "HTTP ${response.code}"
+                        lastErrorMsg = "Claude ${response.code}: $errMsg"
+                        callback(null); return
+                    }
                     callback(json.getJSONArray("content").getJSONObject(0).getString("text"))
-                } catch (e: Exception) { callback(null) }
+                } catch (e: Exception) {
+                    lastErrorMsg = "Claude parse: ${responseStr.take(80)}"
+                    callback(null)
+                }
             }
         })
     }
@@ -596,12 +646,24 @@ class RephraseAccessibilityService : AccessibilityService() {
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
         client.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { callback(null) }
+            override fun onFailure(call: Call, e: IOException) {
+                lastErrorMsg = "OpenAI network: ${e.message}"
+                callback(null)
+            }
             override fun onResponse(call: Call, response: Response) {
+                val responseStr = response.body?.string() ?: ""
                 try {
-                    val json = JSONObject(response.body?.string() ?: "")
+                    val json = JSONObject(responseStr)
+                    if (!response.isSuccessful) {
+                        val errMsg = json.optJSONObject("error")?.optString("message") ?: "HTTP ${response.code}"
+                        lastErrorMsg = "OpenAI ${response.code}: $errMsg"
+                        callback(null); return
+                    }
                     callback(json.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content"))
-                } catch (e: Exception) { callback(null) }
+                } catch (e: Exception) {
+                    lastErrorMsg = "OpenAI parse: ${responseStr.take(80)}"
+                    callback(null)
+                }
             }
         })
     }
