@@ -40,6 +40,7 @@ class RephraseAccessibilityService : AccessibilityService() {
     private lateinit var prefs: SharedPreferences
     private var isDisabledForApp = false
     private var isKeyboardVisible = false
+    private var lastErrorMsg = ""
 
     companion object {
         var isEnabled = true
@@ -330,6 +331,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         fun rephrase(prompt: String) {
             statusMsg.text = "Rephrasing..."
             resetResults()
+            lastErrorMsg = ""
             callApi(inputText, prompt, false) { result ->
                 handler.post {
                     if (result != null) {
@@ -341,7 +343,8 @@ class RephraseAccessibilityService : AccessibilityService() {
                         btnCloseTop.visibility = View.VISIBLE
                         statusMsg.text = "Tap option to USE it · Copy to copy only"
                     } else {
-                        statusMsg.text = "Failed. Check API key & provider in settings."
+                        val errDetail = if (lastErrorMsg.isNotEmpty()) lastErrorMsg else "Check API key & provider in settings."
+                        statusMsg.text = "Failed: $errDetail"
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
@@ -466,11 +469,16 @@ class RephraseAccessibilityService : AccessibilityService() {
     // Unified API caller — picks provider from prefs
     private fun callApi(text: String, prompt: String, isDirect: Boolean, callback: (String?) -> Unit) {
         val key = prefs.getString("api_key", "") ?: ""
+        val provider = prefs.getString("api_provider", "gemini") ?: "gemini"
+        // DEBUG: Always show what key+provider we actually read from prefs
+        handler.post {
+            val keyPreview = if (key.isEmpty()) "EMPTY!" else "${key.take(6)}... (${key.length} chars)"
+            Toast.makeText(this, "Using: $provider | Key: $keyPreview", Toast.LENGTH_LONG).show()
+        }
         if (key.isEmpty()) {
             handler.post { Toast.makeText(this, "No API key set! Open RePhrase settings.", Toast.LENGTH_LONG).show() }
             callback(null); return
         }
-        val provider = prefs.getString("api_provider", "gemini") ?: "gemini"
         val userContent = if (isDirect) "$prompt\n\nText: $text" else "Rephrase this exact text as instructed: [$text]"
         when (provider) {
             "claude" -> callClaude(key, prompt, userContent, isDirect, callback)
@@ -546,6 +554,7 @@ class RephraseAccessibilityService : AccessibilityService() {
             .build()
         client.newCall(req).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                lastErrorMsg = "Network: ${e.message}"
                 handler.post { Toast.makeText(this@RephraseAccessibilityService, "Network error: ${e.message}", Toast.LENGTH_LONG).show() }
                 callback(null)
             }
@@ -553,9 +562,9 @@ class RephraseAccessibilityService : AccessibilityService() {
                 val responseStr = response.body?.string() ?: ""
                 try {
                     val json = JSONObject(responseStr)
-                    // Show HTTP error details if not 200
                     if (!response.isSuccessful) {
                         val errMsg = json.optJSONObject("error")?.optString("message") ?: "HTTP ${response.code}"
+                        lastErrorMsg = "HTTP ${response.code}: $errMsg"
                         handler.post { Toast.makeText(this@RephraseAccessibilityService, "Gemini: $errMsg", Toast.LENGTH_LONG).show() }
                         callback(null); return
                     }
@@ -563,6 +572,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                         .getJSONObject("content").getJSONArray("parts")
                         .getJSONObject(0).getString("text"))
                 } catch (e: Exception) {
+                    lastErrorMsg = "Parse: ${responseStr.take(80)}"
                     handler.post { Toast.makeText(this@RephraseAccessibilityService, "Parse error: ${responseStr.take(120)}", Toast.LENGTH_LONG).show() }
                     callback(null)
                 }
