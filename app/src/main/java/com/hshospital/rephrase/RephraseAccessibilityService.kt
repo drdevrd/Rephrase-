@@ -501,8 +501,35 @@ class RephraseAccessibilityService : AccessibilityService() {
             Toast.makeText(this, "Provider:$provider | Key:$keyPreview | Src:$src", Toast.LENGTH_LONG).show()
         }
         if (key.isEmpty()) {
-            lastErrorMsg = "No API key found in any prefs file. Open Settings and save again."
-            handler.post { Toast.makeText(this, "No API key found anywhere! Open Settings and save key again.", Toast.LENGTH_LONG).show() }
+            // Scan actual shared_prefs directory on disk to see what files SettingsActivity really creates
+            val diskReport = StringBuilder()
+            try {
+                val prefsDir = java.io.File(applicationInfo.dataDir, "shared_prefs")
+                if (prefsDir.exists()) {
+                    val files = prefsDir.listFiles() ?: emptyArray()
+                    if (files.isEmpty()) {
+                        diskReport.append("shared_prefs dir EMPTY — nothing ever saved!")
+                    } else {
+                        diskReport.append("Files on disk: ")
+                        for (f in files) {
+                            diskReport.append(f.name).append(" (")
+                            // Read first few key names from the XML
+                            try {
+                                val content = f.readText()
+                                val keyMatches = Regex("name=\"([^\"]+)\"").findAll(content).map { it.groupValues[1] }.toList()
+                                diskReport.append(keyMatches.joinToString(",").take(80))
+                            } catch (e: Exception) { diskReport.append("?") }
+                            diskReport.append(") ")
+                        }
+                    }
+                } else {
+                    diskReport.append("shared_prefs dir does NOT exist")
+                }
+            } catch (e: Exception) {
+                diskReport.append("Scan error: ${e.message}")
+            }
+            lastErrorMsg = diskReport.toString()
+            handler.post { Toast.makeText(this, diskReport.toString(), Toast.LENGTH_LONG).show() }
             callback(null); return
         }
         val userContent = if (isDirect) "$prompt\n\nText: $text" else "Rephrase this exact text as instructed: [$text]"
