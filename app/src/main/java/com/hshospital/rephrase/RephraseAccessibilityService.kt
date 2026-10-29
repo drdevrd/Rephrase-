@@ -489,16 +489,26 @@ class RephraseAccessibilityService : AccessibilityService() {
 
     // Unified API caller — picks provider from prefs (searches all common prefs locations)
     private fun callApi(text: String, prompt: String, isDirect: Boolean, callback: (String?) -> Unit) {
-        val keyNames = listOf("api_key", "apiKey", "api-key", "key", "API_KEY", "gemini_key", "gemini_api_key", "claude_key", "openai_key")
+        // Provider first
         val providerNames = listOf("api_provider", "apiProvider", "provider", "ai_provider")
-        val (key, keyFile, keyFound) = findPrefValue(keyNames)
         val (providerRaw, _, _) = findPrefValue(providerNames)
         val provider = (if (providerRaw.isNotEmpty()) providerRaw else "gemini").lowercase()
+        // Key is stored per-provider: api_key_gemini, api_key_claude, api_key_openai
+        val keyNames = listOf(
+            "api_key_$provider",
+            "api_key",
+            "apiKey",
+            "api-key",
+            "key",
+            "${provider}_key",
+            "${provider}_api_key"
+        )
+        val (key, keyFile, keyFound) = findPrefValue(keyNames)
         // DEBUG: show what we actually found and where
         handler.post {
             val keyPreview = if (key.isEmpty()) "EMPTY!" else "${key.take(6)}... (${key.length} chars)"
             val src = if (keyFile.isEmpty()) "none" else "$keyFile/$keyFound"
-            Toast.makeText(this, "Provider:$provider | Key:$keyPreview | Src:$src", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Provider:$provider | Key:$keyPreview | Src:$src", Toast.LENGTH_SHORT).show()
         }
         if (key.isEmpty()) {
             // Scan actual shared_prefs directory on disk to see what files SettingsActivity really creates
