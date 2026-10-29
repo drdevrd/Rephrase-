@@ -615,7 +615,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         contents.put(contentObj)
         val body = JSONObject().put("contents", contents)
         val req = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent")
+            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent")
             .addHeader("Content-Type", "application/json")
             .addHeader("x-goog-api-key", key)
             .post(body.toString().toRequestBody("application/json".toMediaType()))
