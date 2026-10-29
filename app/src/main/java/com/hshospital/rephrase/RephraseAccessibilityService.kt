@@ -466,23 +466,49 @@ class RephraseAccessibilityService : AccessibilityService() {
         try { windowManager?.addView(bubLayout, params) } catch (e: Exception) {}
     }
 
-    // Unified API caller — picks provider from prefs
+    // Search all common prefs locations until we find a non-empty value for one of the given keys.
+    // Returns Triple(value, prefsFileName, keyName) or Triple("", "", "") if nothing found.
+    private fun findPrefValue(keyNames: List<String>): Triple<String, String, String> {
+        val possibleFiles = listOf(
+            "rephrase_prefs",
+            "${packageName}_preferences",   // PreferenceManager default
+            "settings",
+            "prefs",
+            "RephrasePrefs",
+            "RePhrasePrefs"
+        )
+        for (fileName in possibleFiles) {
+            val p = try { getSharedPreferences(fileName, Context.MODE_PRIVATE) } catch (e: Exception) { continue }
+            for (keyName in keyNames) {
+                val v = try { p.getString(keyName, "") ?: "" } catch (e: Exception) { "" }
+                if (v.isNotEmpty()) return Triple(v, fileName, keyName)
+            }
+        }
+        return Triple("", "", "")
+    }
+
+    // Unified API caller — picks provider from prefs (searches all common prefs locations)
     private fun callApi(text: String, prompt: String, isDirect: Boolean, callback: (String?) -> Unit) {
-        val key = prefs.getString("api_key", "") ?: ""
-        val provider = prefs.getString("api_provider", "gemini") ?: "gemini"
-        // DEBUG: Always show what key+provider we actually read from prefs
+        val keyNames = listOf("api_key", "apiKey", "api-key", "key", "API_KEY", "gemini_key", "gemini_api_key", "claude_key", "openai_key")
+        val providerNames = listOf("api_provider", "apiProvider", "provider", "ai_provider")
+        val (key, keyFile, keyFound) = findPrefValue(keyNames)
+        val (providerRaw, _, _) = findPrefValue(providerNames)
+        val provider = (if (providerRaw.isNotEmpty()) providerRaw else "gemini").lowercase()
+        // DEBUG: show what we actually found and where
         handler.post {
             val keyPreview = if (key.isEmpty()) "EMPTY!" else "${key.take(6)}... (${key.length} chars)"
-            Toast.makeText(this, "Using: $provider | Key: $keyPreview", Toast.LENGTH_LONG).show()
+            val src = if (keyFile.isEmpty()) "none" else "$keyFile/$keyFound"
+            Toast.makeText(this, "Provider:$provider | Key:$keyPreview | Src:$src", Toast.LENGTH_LONG).show()
         }
         if (key.isEmpty()) {
-            handler.post { Toast.makeText(this, "No API key set! Open RePhrase settings.", Toast.LENGTH_LONG).show() }
+            lastErrorMsg = "No API key found in any prefs file. Open Settings and save again."
+            handler.post { Toast.makeText(this, "No API key found anywhere! Open Settings and save key again.", Toast.LENGTH_LONG).show() }
             callback(null); return
         }
         val userContent = if (isDirect) "$prompt\n\nText: $text" else "Rephrase this exact text as instructed: [$text]"
         when (provider) {
-            "claude" -> callClaude(key, prompt, userContent, isDirect, callback)
-            "openai" -> callOpenAI(key, prompt, userContent, isDirect, callback)
+            "claude", "anthropic" -> callClaude(key, prompt, userContent, isDirect, callback)
+            "openai", "gpt" -> callOpenAI(key, prompt, userContent, isDirect, callback)
             else -> callGemini(key, prompt, userContent, isDirect, callback)
         }
     }
