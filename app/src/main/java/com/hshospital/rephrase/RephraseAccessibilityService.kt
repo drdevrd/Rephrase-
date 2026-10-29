@@ -21,9 +21,6 @@ import android.widget.TextView
 import android.widget.Toast
 import okhttp3.Call
 import okhttp3.Callback
-import okhttp3.Dns
-import java.net.InetAddress
-import java.net.Inet4Address
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -39,26 +36,8 @@ class RephraseAccessibilityService : AccessibilityService() {
     private var fabView: View? = null
     private var activeNode: AccessibilityNodeInfo? = null
     private val handler = Handler(Looper.getMainLooper())
-    // Many Indian mobile networks have a broken/black-holed IPv6 route to Google's API endpoints:
-    // the first connection attempt silently stalls until connectTimeout, and only the fallback
-    // (IPv4) attempt succeeds. Forcing IPv4-only here removes that stall entirely.
-    private val ipv4OnlyDns = object : Dns {
-        override fun lookup(hostname: String): List<InetAddress> {
-            val all = Dns.SYSTEM.lookup(hostname)
-            val v4 = all.filterIsInstance<Inet4Address>()
-            return if (v4.isNotEmpty()) v4 else all
-        }
-    }
-    private val client = OkHttpClient.Builder()
-        .dns(ipv4OnlyDns)
-        .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-        .writeTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-        .build()
+    private val client = OkHttpClient()
     private lateinit var prefs: SharedPreferences
-    @Volatile private var lastApiError: String = ""
-    @Volatile private var lastCallMs: Long = 0
-    @Volatile private var lastModelUsed: String = ""
     private var isDisabledForApp = false
     private var isKeyboardVisible = false
 
@@ -301,6 +280,9 @@ class RephraseAccessibilityService : AccessibilityService() {
         val btnOption1 = bubLayout.findViewById<Button>(R.id.btn_option1)
         val btnOption2 = bubLayout.findViewById<Button>(R.id.btn_option2)
         val btnOption3 = bubLayout.findViewById<Button>(R.id.btn_option3)
+        val btnCopy1 = bubLayout.findViewById<Button>(R.id.btn_copy1)
+        val btnCopy2 = bubLayout.findViewById<Button>(R.id.btn_copy2)
+        val btnCopy3 = bubLayout.findViewById<Button>(R.id.btn_copy3)
         val btnCloseTop = bubLayout.findViewById<Button>(R.id.btn_close_top)
         val customTonesRow = bubLayout.findViewById<LinearLayout>(R.id.customTonesRow)
         val btnCustom1 = bubLayout.findViewById<Button>(R.id.btn_custom1)
@@ -357,9 +339,9 @@ class RephraseAccessibilityService : AccessibilityService() {
                         btnOption3.text = "3. ${options.getOrElse(2) { "" }}"
                         optionsScroll.visibility = View.VISIBLE
                         btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "Tap an option to use it (${lastCallMs}ms${if (lastModelUsed.isNotEmpty()) " · " + lastModelUsed else ""})"
+                        statusMsg.text = "Tap option to USE it · Copy to copy only"
                     } else {
-                        statusMsg.text = if (lastApiError.isNotEmpty()) lastApiError else "Failed. Check API key & provider in settings."
+                        statusMsg.text = "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
@@ -379,13 +361,13 @@ class RephraseAccessibilityService : AccessibilityService() {
                         grammarScroll.visibility = View.VISIBLE
                         btnUseGrammar.visibility = View.VISIBLE
                         btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "Grammar check done (${lastCallMs}ms${if (lastModelUsed.isNotEmpty()) " · " + lastModelUsed else ""})"
+                        statusMsg.text = "Grammar check done"
                         btnUseGrammar.setOnClickListener {
                             pasteResult(corrected)
                             dismissBubble()
                         }
                     } else {
-                        statusMsg.text = if (lastApiError.isNotEmpty()) lastApiError else "Failed. Check API key & provider in settings."
+                        statusMsg.text = "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
@@ -400,9 +382,9 @@ class RephraseAccessibilityService : AccessibilityService() {
                         askAiResult.text = result
                         askAiScroll.visibility = View.VISIBLE
                         btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "AI Response (${lastCallMs}ms${if (lastModelUsed.isNotEmpty()) " · " + lastModelUsed else ""})"
+                        statusMsg.text = "AI Response"
                     } else {
-                        statusMsg.text = if (lastApiError.isNotEmpty()) lastApiError else "Failed. Check API key & provider in settings."
+                        statusMsg.text = "Failed. Check API key & provider in settings."
                         btnCloseTop.visibility = View.VISIBLE
                     }
                 }
@@ -449,93 +431,51 @@ class RephraseAccessibilityService : AccessibilityService() {
             if (t.startsWith("3. ")) t = t.substring(3)
             pasteResult(t); dismissBubble()
         }
+        // Copy buttons — copy to clipboard only, bubble stays open
+        btnCopy1.setOnClickListener {
+            var t = btnOption1.text.toString()
+            if (t.startsWith("1. ")) t = t.substring(3)
+            if (t.isNotEmpty()) {
+                val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cb.setPrimaryClip(ClipData.newPlainText("rephrased", t))
+                Toast.makeText(this, "Option 1 copied!", Toast.LENGTH_SHORT).show()
+            }
+        }
+        btnCopy2.setOnClickListener {
+            var t = btnOption2.text.toString()
+            if (t.startsWith("2. ")) t = t.substring(3)
+            if (t.isNotEmpty()) {
+                val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cb.setPrimaryClip(ClipData.newPlainText("rephrased", t))
+                Toast.makeText(this, "Option 2 copied!", Toast.LENGTH_SHORT).show()
+            }
+        }
+        btnCopy3.setOnClickListener {
+            var t = btnOption3.text.toString()
+            if (t.startsWith("3. ")) t = t.substring(3)
+            if (t.isNotEmpty()) {
+                val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cb.setPrimaryClip(ClipData.newPlainText("rephrased", t))
+                Toast.makeText(this, "Option 3 copied!", Toast.LENGTH_SHORT).show()
+            }
+        }
         btnCloseTop.setOnClickListener { dismissBubble() }
         try { windowManager?.addView(bubLayout, params) } catch (e: Exception) {}
     }
 
     // Unified API caller — picks provider from prefs
     private fun callApi(text: String, prompt: String, isDirect: Boolean, callback: (String?) -> Unit) {
-        lastApiError = ""
-        lastModelUsed = ""
-        val callStart = System.currentTimeMillis()
-        val provider = prefs.getString("api_provider", "gemini") ?: "gemini"
-        val userContent = if (isDirect) "$prompt\n\nText: $text" else "Rephrase this exact text as instructed: [$text]"
-
-        fun keyFor(p: String): String {
-            var k = prefs.getString("api_key_$p", "") ?: ""
-            if (k.isEmpty()) k = prefs.getString("api_key", "") ?: ""
-            return k
-        }
-
-        val primaryKey = keyFor(provider)
-        if (primaryKey.isEmpty()) {
-            handler.post { Toast.makeText(this, "No API key set for $provider! Open RePhrase settings.", Toast.LENGTH_LONG).show() }
+        val key = prefs.getString("api_key", "") ?: ""
+        if (key.isEmpty()) {
+            handler.post { Toast.makeText(this, "No API key set! Open RePhrase settings.", Toast.LENGTH_LONG).show() }
             callback(null); return
         }
-
-        // Race pattern for Gemini: start Gemini now, start OpenAI as backup after the configured
-        // timeout if Gemini hasn't answered. Whichever succeeds first wins; the loser is ignored.
-        // If Gemini fails outright, OpenAI's result is used. Set gemini_fallback_secs = 0 to disable.
-        if (provider == "gemini") {
-            val fallbackSecs = prefs.getInt("gemini_fallback_secs", 8)
-            val openAiKey = if (fallbackSecs > 0) keyFor("openai") else ""
-            val done = java.util.concurrent.atomic.AtomicBoolean(false)
-            fun finish(result: String?) {
-                if (done.compareAndSet(false, true)) {
-                    lastCallMs = System.currentTimeMillis() - callStart
-                    callback(result)
-                }
-            }
-            // Gemini result
-            var geminiFailed = false
-            callGemini(primaryKey, prompt, userContent, isDirect) { result ->
-                if (result != null) finish(result) else {
-                    geminiFailed = true
-                    if (openAiKey.isEmpty() && !done.get()) finish(null)
-                }
-            }
-            // OpenAI backup timer (only if enabled and a key is available)
-            if (openAiKey.isNotEmpty()) {
-                handler.postDelayed({
-                    if (!done.get()) {
-                        callOpenAI(openAiKey, prompt, userContent, isDirect) { r -> if (r != null) finish(r) else if (geminiFailed) finish(null) }
-                    }
-                }, fallbackSecs * 1000L)
-            }
-            return
-        }
-
-        // Non-Gemini providers behave as before
-        val timedCallback: (String?) -> Unit = { result ->
-            lastCallMs = System.currentTimeMillis() - callStart
-            callback(result)
-        }
+        val provider = prefs.getString("api_provider", "gemini") ?: "gemini"
+        val userContent = if (isDirect) "$prompt\n\nText: $text" else "Rephrase this exact text as instructed: [$text]"
         when (provider) {
-            "claude" -> callClaude(primaryKey, prompt, userContent, isDirect, timedCallback)
-            "openai" -> callOpenAI(primaryKey, prompt, userContent, isDirect, timedCallback)
-        }
-    }
-
-    // Shows the real failure reason (HTTP code + provider error message) instead of a generic "Failed" toast
-    private fun reportApiError(provider: String, response: Response, bodyStr: String) {
-        val code = response.code
-        val shortMsg = try {
-            val json = JSONObject(bodyStr)
-            when {
-                json.has("error") && json.get("error") is JSONObject -> {
-                    val err = json.getJSONObject("error")
-                    val base = err.optString("message", bodyStr)
-                    val det = err.optJSONArray("details")?.toString() ?: ""
-                    if (det.isNotEmpty()) "$base | $det" else base
-                }
-                json.has("error") -> json.optString("error", bodyStr)
-                else -> bodyStr
-            }
-        } catch (e: Exception) { bodyStr }
-        val trimmed = if (shortMsg.length > 400) shortMsg.substring(0, 400) + "…" else shortMsg
-        lastApiError = "$provider $code: $trimmed"
-        handler.post {
-            Toast.makeText(this, "$provider error $code: $trimmed", Toast.LENGTH_LONG).show()
+            "claude" -> callClaude(key, prompt, userContent, isDirect, callback)
+            "openai" -> callOpenAI(key, prompt, userContent, isDirect, callback)
+            else -> callGemini(key, prompt, userContent, isDirect, callback)
         }
     }
 
@@ -555,22 +495,12 @@ class RephraseAccessibilityService : AccessibilityService() {
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
         client.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                lastApiError = "Claude network error: ${e.message}"
-                handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
-                callback(null)
-            }
+            override fun onFailure(call: Call, e: IOException) { callback(null) }
             override fun onResponse(call: Call, response: Response) {
-                val bodyStr = response.body?.string() ?: ""
-                if (!response.isSuccessful) { reportApiError("Claude", response, bodyStr); callback(null); return }
                 try {
-                    val json = JSONObject(bodyStr)
+                    val json = JSONObject(response.body?.string() ?: "")
                     callback(json.getJSONArray("content").getJSONObject(0).getString("text"))
-                } catch (e: Exception) {
-                    lastApiError = "Claude: unexpected response format"
-                    handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
-                    callback(null)
-                }
+                } catch (e: Exception) { callback(null) }
             }
         })
     }
@@ -590,116 +520,40 @@ class RephraseAccessibilityService : AccessibilityService() {
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
         client.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                lastApiError = "OpenAI network error: ${e.message}"
-                handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
-                callback(null)
-            }
+            override fun onFailure(call: Call, e: IOException) { callback(null) }
             override fun onResponse(call: Call, response: Response) {
-                val bodyStr = response.body?.string() ?: ""
-                if (!response.isSuccessful) { reportApiError("OpenAI", response, bodyStr); callback(null); return }
                 try {
-                    val json = JSONObject(bodyStr)
-                    lastModelUsed = "gpt-4o-mini"
+                    val json = JSONObject(response.body?.string() ?: "")
                     callback(json.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content"))
-                } catch (e: Exception) {
-                    lastApiError = "OpenAI: unexpected response format"
-                    handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
-                    callback(null)
-                }
+                } catch (e: Exception) { callback(null) }
             }
         })
     }
 
     private fun callGemini(key: String, prompt: String, userContent: String, isDirect: Boolean, callback: (String?) -> Unit) {
-        val startedAt = System.currentTimeMillis()
-        geminiAttempt(key, prompt, userContent, isDirect, callback, attempt = 1, modelIndex = 0, startedAt = startedAt)
-    }
-
-    // Fast Lite model first (auto-updating alias); full Flash as fallback if the alias 404s
-    private val geminiModels = listOf("gemini-flash-lite-latest", "gemini-3.6-flash")
-
-    // One retry on network failure/busy; on 400 resend once without generationConfig
-    private fun geminiAttempt(
-        key: String, prompt: String, userContent: String, isDirect: Boolean,
-        callback: (String?) -> Unit, attempt: Int, modelIndex: Int, startedAt: Long,
-        useGenConfig: Boolean = true
-    ) {
-        val model = geminiModels[modelIndex]
-        lastModelUsed = model
-        val maxAttempts = 2
         val fullText = if (isDirect) userContent else "$prompt\n\n$userContent"
-        val parts = JSONArray().put(JSONObject().put("text", fullText))
-        val contents = JSONArray().put(JSONObject().put("role", "user").put("parts", parts))
+        val parts = JSONArray()
+        parts.put(JSONObject().put("text", fullText))
+        val contentObj = JSONObject().put("parts", parts)
+        val contents = JSONArray()
+        contents.put(contentObj)
         val body = JSONObject().put("contents", contents)
-        if (useGenConfig) body.put("generationConfig", JSONObject().put("maxOutputTokens", 300))
         val req = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent")
+            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent")
             .addHeader("Content-Type", "application/json")
             .addHeader("x-goog-api-key", key)
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
-
-        fun elapsed() = "${(System.currentTimeMillis() - startedAt)}ms"
-
-        fun retryLater(reason: String) {
-            handler.post {
-                Toast.makeText(this@RephraseAccessibilityService,
-                    "Gemini $reason after ${elapsed()} — retrying…", Toast.LENGTH_SHORT).show()
-            }
-            handler.postDelayed({
-                geminiAttempt(key, prompt, userContent, isDirect, callback, attempt + 1, modelIndex, startedAt, useGenConfig)
-            }, 800L)
-        }
-
         client.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                if (attempt < maxAttempts) { retryLater("timeout"); return }
-                lastApiError = "Gemini network error after ${elapsed()}: ${e.message}"
-                handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
-                callback(null)
-            }
+            override fun onFailure(call: Call, e: IOException) { callback(null) }
             override fun onResponse(call: Call, response: Response) {
-                val bodyStr = response.body?.string() ?: ""
-                if (!response.isSuccessful) {
-                    val code = response.code
-                    // Model rejected a config field → resend once with bare request
-                    if (code == 400 && useGenConfig) {
-                        geminiAttempt(key, prompt, userContent, isDirect, callback, attempt, modelIndex, startedAt, useGenConfig = false)
-                        return
-                    }
-                    // Model rejects request or is retired → try the next model in the list
-                    if ((code == 400 || code == 404) && modelIndex + 1 < geminiModels.size) {
-                        geminiAttempt(key, prompt, userContent, isDirect, callback, 1, modelIndex + 1, startedAt)
-                        return
-                    }
-                    if ((code == 429 || code == 500 || code == 503) && attempt < maxAttempts) {
-                        retryLater("busy ($code)"); return
-                    }
-                    reportApiError("Gemini (${elapsed()})", response, bodyStr); callback(null); return
-                }
                 try {
-                    val json = JSONObject(bodyStr)
-                    val respParts = json.getJSONArray("candidates").getJSONObject(0)
+                    val responseStr = response.body?.string() ?: ""
+                    val json = JSONObject(responseStr)
+                    callback(json.getJSONArray("candidates").getJSONObject(0)
                         .getJSONObject("content").getJSONArray("parts")
-                    // Skip any "thought" parts; join the actual answer text
-                    val sb = StringBuilder()
-                    for (i in 0 until respParts.length()) {
-                        val part = respParts.getJSONObject(i)
-                        if (part.optBoolean("thought", false)) continue
-                        sb.append(part.optString("text", ""))
-                    }
-                    val text = sb.toString().trim()
-                    if (text.isEmpty()) throw IllegalStateException("empty")
-                    handler.post {
-                        Toast.makeText(this@RephraseAccessibilityService, "Gemini ($model) — ${elapsed()}", Toast.LENGTH_SHORT).show()
-                    }
-                    callback(text)
-                } catch (e: Exception) {
-                    lastApiError = "Gemini: unexpected response format (${elapsed()})"
-                    handler.post { Toast.makeText(this@RephraseAccessibilityService, lastApiError, Toast.LENGTH_LONG).show() }
-                    callback(null)
-                }
+                        .getJSONObject(0).getString("text"))
+                } catch (e: Exception) { callback(null) }
             }
         })
     }
