@@ -233,8 +233,34 @@
                     android:backgroundTint="#0e7490"/>
             </LinearLayout>
 
+            <!-- Overflow / selectable-text view — holds all options as selectable text so you can copy partial sentences -->
+            <TextView
+                android:id="@+id/optionsSelectable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="#e6edf3"
+                android:textSize="13sp"
+                android:background="#161b22"
+                android:padding="8dp"
+                android:textIsSelectable="true"
+                android:visibility="gone"
+                android:layout_marginTop="4dp"/>
+
         </LinearLayout>
     </ScrollView>
+
+    <!-- Toggle between buttons view and selectable text view -->
+    <Button
+        android:id="@+id/btn_toggle_select"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:text="📝 Select partial text"
+        android:textSize="12sp"
+        android:textAllCaps="false"
+        android:backgroundTint="#6e40c9"
+        android:visibility="gone"
+        android:layout_marginTop="4dp"/>
 
     <!-- Grammar result section -->
     <ScrollView
@@ -294,8 +320,21 @@
             android:textColor="#e6edf3"
             android:textSize="13sp"
             android:background="#161b22"
-            android:padding="8dp"/>
+            android:padding="8dp"
+            android:textIsSelectable="true"/>
     </ScrollView>
+
+    <!-- Copy Ask AI result button -->
+    <Button
+        android:id="@+id/btn_copy_ask_ai"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:text="Copy Answer"
+        android:textSize="12sp"
+        android:textAllCaps="false"
+        android:backgroundTint="#0e7490"
+        android:visibility="gone"
+        android:layout_marginTop="4dp"/>
 
     <!-- Close / Done button -->
     <Button
