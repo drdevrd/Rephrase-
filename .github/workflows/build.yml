@@ -1,8 +1,8 @@
-name: Build APK
+name: Build Signed APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -14,40 +14,37 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
           distribution: 'temurin'
+          java-version: '17'
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Create persistent keystore
+      - name: Restore keystore from secret
         run: |
-          keytool -genkeypair -v \
-            -keystore app/hshospital.keystore \
-            -alias hshospital \
-            -keyalg RSA -keysize 2048 \
-            -validity 36500 \
-            -storepass android123 \
-            -keypass android123 \
-            -dname "CN=HSHospital, OU=Android, O=HSHospital, L=Coimbatore, S=TN, C=IN"
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > ${{ github.workspace }}/rephrase.keystore
 
-      - name: Install Gradle
+      - name: Auto-bump versionCode
         run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.1-bin.zip
-          unzip -q gradle-8.1-bin.zip
-          echo "$PWD/gradle-8.1/bin" >> $GITHUB_PATH
+          # Set versionCode from the run number so every build is a higher version
+          sed -i "s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" app/build.gradle || true
+          sed -i "s/versionCode = [0-9]*/versionCode = ${{ github.run_number }}/" app/build.gradle.kts || true
+          sed -i "s/versionName \"[^\"]*\"/versionName \"1.0.${{ github.run_number }}\"/" app/build.gradle || true
+          sed -i "s/versionName = \"[^\"]*\"/versionName = \"1.0.${{ github.run_number }}\"/" app/build.gradle.kts || true
 
-      - name: Build Signed APK
-        run: |
-          gradle assembleRelease \
-            -Pandroid.injected.signing.store.file=$PWD/app/hshospital.keystore \
-            -Pandroid.injected.signing.store.password=android123 \
-            -Pandroid.injected.signing.key.alias=hshospital \
-            -Pandroid.injected.signing.key.password=android123 \
-            --stacktrace
+      - name: Grant Gradle permission
+        run: chmod +x ./gradlew
+
+      - name: Build signed release APK
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/rephrase.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: ./gradlew assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: RePhrase-APK
-          path: app/build/outputs/apk/release/app-release.apk
+          name: rephrase-signed-apk
+          path: app/build/outputs/apk/release/*.apk
