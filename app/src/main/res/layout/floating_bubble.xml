@@ -168,6 +168,20 @@
         android:visibility="gone"
         android:layout_marginTop="4dp"/>
 
+    <!-- Copy Selected button for the options EditText -->
+    <Button
+        android:id="@+id/btn_copy_selected_options"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:text="📋 Copy selected text"
+        android:textSize="12sp"
+        android:textAllCaps="false"
+        android:backgroundTint="#238636"
+        android:textColor="#ffffff"
+        android:textStyle="bold"
+        android:visibility="gone"
+        android:layout_marginTop="4dp"/>
+
     <!-- Toggle between buttons view and selectable text view -->
     <Button
         android:id="@+id/btn_toggle_select"
@@ -244,16 +258,34 @@
             android:inputType="textMultiLine"/>
     </ScrollView>
 
-    <!-- Copy Ask AI result button -->
-    <Button
-        android:id="@+id/btn_copy_ask_ai"
+    <!-- Copy Ask AI result buttons: full answer + selected portion -->
+    <LinearLayout
+        android:id="@+id/askAiCopyRow"
         android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:text="Copy Answer"
-        android:textSize="12sp"
-        android:textAllCaps="false"
-        android:backgroundTint="#0e7490"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
         android:visibility="gone"
-        android:layout_marginTop="4dp"/>
+        android:layout_marginTop="4dp">
+        <Button
+            android:id="@+id/btn_copy_ask_ai"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="40dp"
+            android:text="Copy All"
+            android:textSize="12sp"
+            android:textAllCaps="false"
+            android:backgroundTint="#0e7490"
+            android:layout_marginEnd="4dp"/>
+        <Button
+            android:id="@+id/btn_copy_selected_ask_ai"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="40dp"
+            android:text="📋 Copy Selected"
+            android:textSize="12sp"
+            android:textAllCaps="false"
+            android:backgroundTint="#238636"
+            android:textStyle="bold"/>
+    </LinearLayout>
 
 </LinearLayout>
