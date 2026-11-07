@@ -286,6 +286,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         val optionsScroll = bubLayout.findViewById<View>(R.id.optionsScroll)
         val optionsContainer = bubLayout.findViewById<LinearLayout>(R.id.optionsContainer)
         val optionsSelectable = bubLayout.findViewById<android.widget.EditText>(R.id.optionsSelectable)
+        val btnCopySelectedOptions = bubLayout.findViewById<Button>(R.id.btn_copy_selected_options)
         val btnToggleSelect = bubLayout.findViewById<Button>(R.id.btn_toggle_select)
         val btnCloseX = bubLayout.findViewById<Button>(R.id.btn_close_x)
         val customTonesRow = bubLayout.findViewById<LinearLayout>(R.id.customTonesRow)
@@ -298,7 +299,9 @@ class RephraseAccessibilityService : AccessibilityService() {
         val btnUseGrammar = bubLayout.findViewById<Button>(R.id.btn_use_grammar)
         val askAiScroll = bubLayout.findViewById<View>(R.id.askAiScroll)
         val askAiResult = bubLayout.findViewById<android.widget.EditText>(R.id.askAiResult)
+        val askAiCopyRow = bubLayout.findViewById<LinearLayout>(R.id.askAiCopyRow)
         val btnCopyAskAi = bubLayout.findViewById<Button>(R.id.btn_copy_ask_ai)
+        val btnCopySelectedAskAi = bubLayout.findViewById<Button>(R.id.btn_copy_selected_ask_ai)
         val customName1 = prefs.getString("custom_name_1", "") ?: ""
         val customPrompt1 = prefs.getString("custom_prompt_1", "") ?: ""
         val customName2 = prefs.getString("custom_name_2", "") ?: ""
@@ -321,7 +324,9 @@ class RephraseAccessibilityService : AccessibilityService() {
             grammarScroll.visibility = View.GONE
             btnUseGrammar.visibility = View.GONE
             askAiScroll.visibility = View.GONE
+            askAiCopyRow.visibility = View.GONE
             btnCopyAskAi.visibility = View.GONE
+            btnCopySelectedOptions.visibility = View.GONE
         }
         // Build a single option row: [big "N. text" USE button | 56dp Copy button]
         fun buildOptionRow(index: Int, text: String, pasteFn: (String) -> Unit) {
@@ -435,6 +440,7 @@ class RephraseAccessibilityService : AccessibilityService() {
                     if (result != null) {
                         askAiResult.setText(result)
                         askAiScroll.visibility = View.VISIBLE
+                        askAiCopyRow.visibility = View.VISIBLE
                         btnCopyAskAi.visibility = View.VISIBLE
                         statusMsg.text = "AI Response · select text or tap Copy Answer"
                     } else {
@@ -449,8 +455,36 @@ class RephraseAccessibilityService : AccessibilityService() {
             if (t.isNotEmpty()) {
                 val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 cb.setPrimaryClip(ClipData.newPlainText("ai_answer", t))
-                Toast.makeText(this, "Answer copied!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "All answer copied!", Toast.LENGTH_SHORT).show()
             }
+        }
+        // Copy Selected (AI answer) — reads the current selection range directly from the EditText
+        btnCopySelectedAskAi.setOnClickListener {
+            val full = askAiResult.text.toString()
+            val start = askAiResult.selectionStart.coerceAtLeast(0)
+            val end = askAiResult.selectionEnd.coerceAtLeast(0)
+            val lo = minOf(start, end)
+            val hi = maxOf(start, end)
+            val picked = if (lo in 0..full.length && hi in 0..full.length && hi > lo)
+                full.substring(lo, hi) else full
+            val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cb.setPrimaryClip(ClipData.newPlainText("ai_selected", picked))
+            val label = if (hi > lo) "Selected text copied (${picked.length} chars)" else "No selection — copied all"
+            Toast.makeText(this, label, Toast.LENGTH_SHORT).show()
+        }
+        // Copy Selected (rephrase options) — same logic for the big selectable EditText
+        btnCopySelectedOptions.setOnClickListener {
+            val full = optionsSelectable.text.toString()
+            val start = optionsSelectable.selectionStart.coerceAtLeast(0)
+            val end = optionsSelectable.selectionEnd.coerceAtLeast(0)
+            val lo = minOf(start, end)
+            val hi = maxOf(start, end)
+            val picked = if (lo in 0..full.length && hi in 0..full.length && hi > lo)
+                full.substring(lo, hi) else full
+            val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cb.setPrimaryClip(ClipData.newPlainText("rephrase_selected", picked))
+            val label = if (hi > lo) "Selected text copied (${picked.length} chars)" else "No selection — copied all"
+            Toast.makeText(this, label, Toast.LENGTH_SHORT).show()
         }
         // Focus-friendly flag combinations:
         //  - notFocusableFlags : default — overlay doesn't steal keyboard focus from the text field below
@@ -471,6 +505,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         btnToggleSelect.setOnClickListener {
             if (optionsSelectable.visibility == View.VISIBLE) {
                 optionsSelectable.visibility = View.GONE
+                btnCopySelectedOptions.visibility = View.GONE
                 optionsScroll.visibility = View.VISIBLE
                 btnToggleSelect.text = "📝 Select partial text"
                 params.flags = notFocusableFlags
@@ -478,12 +513,13 @@ class RephraseAccessibilityService : AccessibilityService() {
             } else {
                 optionsScroll.visibility = View.GONE
                 optionsSelectable.visibility = View.VISIBLE
+                btnCopySelectedOptions.visibility = View.VISIBLE
                 btnToggleSelect.text = "⬅ Back to buttons"
                 params.flags = focusableFlags
                 try { windowManager?.updateViewLayout(bubLayout, params) } catch (e: Exception) {}
                 optionsSelectable.requestFocus()
                 optionsSelectable.setSelection(0)
-                Toast.makeText(this, "Long-press text → select → Copy", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Long-press to highlight → tap 📋 Copy Selected", Toast.LENGTH_LONG).show()
             }
         }
         bubLayout.findViewById<Button>(R.id.btn_formal).setOnClickListener { rephrase(tones["formal"]!!) }
