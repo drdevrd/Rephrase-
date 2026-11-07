@@ -17,10 +17,20 @@ android {
 
     signingConfigs {
         release {
-            storeFile file("hshospital.keystore")
-            storePassword "android123"
-            keyAlias "hshospital"
-            keyPassword "android123"
+            def ksPath = System.getenv("KEYSTORE_PATH")
+            if (ksPath != null && file(ksPath).exists()) {
+                // CI build: use the keystore restored from GitHub Secret
+                storeFile file(ksPath)
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+            } else if (file("hshospital.keystore").exists()) {
+                // Local build fallback: use hshospital.keystore from app/ folder
+                storeFile file("hshospital.keystore")
+                storePassword "android123"
+                keyAlias "hshospital"
+                keyPassword "android123"
+            }
         }
     }
 
