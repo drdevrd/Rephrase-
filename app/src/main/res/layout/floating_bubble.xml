@@ -6,17 +6,36 @@
     android:background="#EE1a1f2e"
     android:padding="10dp">
 
-    <!-- Status / title bar -->
-    <TextView
-        android:id="@+id/statusMsg"
+    <!-- Top bar: status message + always-visible ✕ close button -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="RePhrase"
-        android:textColor="#58a6ff"
-        android:textSize="13sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="8dp"/>
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+        <TextView
+            android:id="@+id/statusMsg"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="RePhrase"
+            android:textColor="#58a6ff"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:gravity="center_vertical"/>
+        <Button
+            android:id="@+id/btn_close_x"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:text="✕"
+            android:textSize="14sp"
+            android:textAllCaps="false"
+            android:textColor="#ffffff"
+            android:backgroundTint="#6e1c1c"
+            android:paddingStart="0dp"
+            android:paddingEnd="0dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp"/>
+    </LinearLayout>
 
     <!-- Tone buttons row 1 -->
     <LinearLayout
@@ -117,138 +136,37 @@
     </LinearLayout>
 
     <!-- Rephrasing options section (hidden until results arrive) -->
+    <!-- Max height so a 10-option list scrolls instead of pushing the bubble off-screen -->
     <ScrollView
         android:id="@+id/optionsScroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:maxHeight="420dp"
         android:visibility="gone"
         android:layout_marginTop="4dp">
         <LinearLayout
+            android:id="@+id/optionsContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <!-- Option 1: tap button = USE (paste+dismiss), Copy button = copy only -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="4dp">
-                <Button
-                    android:id="@+id/btn_option1"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:text="Option 1"
-                    android:textSize="12sp"
-                    android:textAllCaps="false"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="6dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp"
-                    android:backgroundTint="#238636"
-                    android:layout_marginEnd="4dp"/>
-                <Button
-                    android:id="@+id/btn_copy1"
-                    android:layout_width="56dp"
-                    android:layout_height="wrap_content"
-                    android:text="Copy"
-                    android:textSize="11sp"
-                    android:textAllCaps="false"
-                    android:paddingStart="4dp"
-                    android:paddingEnd="4dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp"
-                    android:backgroundTint="#0e7490"/>
-            </LinearLayout>
-
-            <!-- Option 2 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="4dp">
-                <Button
-                    android:id="@+id/btn_option2"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:text="Option 2"
-                    android:textSize="12sp"
-                    android:textAllCaps="false"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="6dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp"
-                    android:backgroundTint="#238636"
-                    android:layout_marginEnd="4dp"/>
-                <Button
-                    android:id="@+id/btn_copy2"
-                    android:layout_width="56dp"
-                    android:layout_height="wrap_content"
-                    android:text="Copy"
-                    android:textSize="11sp"
-                    android:textAllCaps="false"
-                    android:paddingStart="4dp"
-                    android:paddingEnd="4dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp"
-                    android:backgroundTint="#0e7490"/>
-            </LinearLayout>
-
-            <!-- Option 3 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="4dp">
-                <Button
-                    android:id="@+id/btn_option3"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:text="Option 3"
-                    android:textSize="12sp"
-                    android:textAllCaps="false"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="6dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp"
-                    android:backgroundTint="#238636"
-                    android:layout_marginEnd="4dp"/>
-                <Button
-                    android:id="@+id/btn_copy3"
-                    android:layout_width="56dp"
-                    android:layout_height="wrap_content"
-                    android:text="Copy"
-                    android:textSize="11sp"
-                    android:textAllCaps="false"
-                    android:paddingStart="4dp"
-                    android:paddingEnd="4dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp"
-                    android:backgroundTint="#0e7490"/>
-            </LinearLayout>
-
-            <!-- Overflow / selectable-text view — holds all options as selectable text so you can copy partial sentences -->
-            <TextView
-                android:id="@+id/optionsSelectable"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textColor="#e6edf3"
-                android:textSize="13sp"
-                android:background="#161b22"
-                android:padding="8dp"
-                android:textIsSelectable="true"
-                android:visibility="gone"
-                android:layout_marginTop="4dp"/>
-
-        </LinearLayout>
+            android:orientation="vertical"/>
     </ScrollView>
+
+    <!-- Selectable EditText (all options). EditText supports proper selection on accessibility overlays. -->
+    <EditText
+        android:id="@+id/optionsSelectable"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxHeight="300dp"
+        android:text=""
+        android:textColor="#e6edf3"
+        android:textSize="13sp"
+        android:background="#161b22"
+        android:padding="8dp"
+        android:gravity="top|start"
+        android:scrollbars="vertical"
+        android:inputType="textMultiLine"
+        android:visibility="gone"
+        android:layout_marginTop="4dp"/>
 
     <!-- Toggle between buttons view and selectable text view -->
     <Button
@@ -305,14 +223,15 @@
         android:visibility="gone"
         android:layout_marginTop="4dp"/>
 
-    <!-- Ask AI result section -->
+    <!-- Ask AI result section — EditText for proper partial selection -->
     <ScrollView
         android:id="@+id/askAiScroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:maxHeight="300dp"
         android:visibility="gone"
         android:layout_marginTop="4dp">
-        <TextView
+        <EditText
             android:id="@+id/askAiResult"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -321,7 +240,8 @@
             android:textSize="13sp"
             android:background="#161b22"
             android:padding="8dp"
-            android:textIsSelectable="true"/>
+            android:gravity="top|start"
+            android:inputType="textMultiLine"/>
     </ScrollView>
 
     <!-- Copy Ask AI result button -->
@@ -335,17 +255,5 @@
         android:backgroundTint="#0e7490"
         android:visibility="gone"
         android:layout_marginTop="4dp"/>
-
-    <!-- Close / Done button -->
-    <Button
-        android:id="@+id/btn_close_top"
-        android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:text="✕ Close"
-        android:textSize="12sp"
-        android:textAllCaps="false"
-        android:backgroundTint="#6e1c1c"
-        android:visibility="gone"
-        android:layout_marginTop="6dp"/>
 
 </LinearLayout>
