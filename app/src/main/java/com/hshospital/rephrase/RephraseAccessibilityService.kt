@@ -81,15 +81,15 @@ class RephraseAccessibilityService : AccessibilityService() {
     )
 
     private val tones = mapOf(
-        "formal"    to "Give exactly 3 numbered rephrasing options in formal professional tone. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
-        "casual"    to "Give exactly 3 numbered rephrasing options in friendly casual tone. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
-        "medical"   to "Give exactly 3 numbered rephrasing options in clinical medical language. Keep ALL drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
-        "simple"    to "Give exactly 3 numbered rephrasing options in very simple language. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
-        "concise"   to "Give exactly 3 numbered rephrasing options as concisely as possible. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
-        "natural"   to "Give exactly 3 numbered rephrasing options that sound completely natural. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
-        "discharge" to "Give exactly 3 numbered rephrasing options in discharge summary language. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ...",
-        "tamil"     to "Give exactly 3 numbered Tamil translation options. Keep drug names in English. Format:\n1. ...\n2. ...\n3. ...",
-        "email"     to "Give exactly 3 numbered rephrasing options as polished professional email body. Keep drug names exactly. Format:\n1. ...\n2. ...\n3. ..."
+        "formal"    to "Give exactly 10 distinct numbered rephrasing options in formal professional tone. Keep drug names exactly. Each option must be meaningfully different from the others. Format as:\n1. ...\n2. ...\n...\n10. ...",
+        "casual"    to "Give exactly 10 distinct numbered rephrasing options in friendly casual tone. Keep drug names exactly. Each option must be meaningfully different. Format as:\n1. ...\n2. ...\n...\n10. ...",
+        "medical"   to "Give exactly 10 distinct numbered rephrasing options in clinical medical language. Keep ALL drug names exactly. Each option must be meaningfully different. Format as:\n1. ...\n2. ...\n...\n10. ...",
+        "simple"    to "Give exactly 10 distinct numbered rephrasing options in very simple language. Keep drug names exactly. Each option must be meaningfully different. Format as:\n1. ...\n2. ...\n...\n10. ...",
+        "concise"   to "Give exactly 10 distinct numbered rephrasing options as concisely as possible. Keep drug names exactly. Each option must be meaningfully different. Format as:\n1. ...\n2. ...\n...\n10. ...",
+        "natural"   to "Give exactly 10 distinct numbered rephrasing options that sound completely natural. Keep drug names exactly. Each option must be meaningfully different. Format as:\n1. ...\n2. ...\n...\n10. ...",
+        "discharge" to "Give exactly 10 distinct numbered rephrasing options in discharge summary language. Keep drug names exactly. Each option must be meaningfully different. Format as:\n1. ...\n2. ...\n...\n10. ...",
+        "tamil"     to "Give exactly 10 distinct numbered Tamil translation options. Keep drug names in English. Each option must be meaningfully different. Format as:\n1. ...\n2. ...\n...\n10. ...",
+        "email"     to "Give exactly 10 distinct numbered rephrasing options as polished professional email body. Keep drug names exactly. Each option must be meaningfully different. Format as:\n1. ...\n2. ...\n...\n10. ..."
     )
 
     private val grammarPrompt = "You are a grammar checker. Check the given text for grammar errors. Respond in exactly this format:\nCORRECTED: [the corrected sentence]\nEXPLANATION: [brief explanation of what was wrong, or No errors found if correct]"
@@ -284,15 +284,10 @@ class RephraseAccessibilityService : AccessibilityService() {
         params.y = 100
         val statusMsg = bubLayout.findViewById<TextView>(R.id.statusMsg)
         val optionsScroll = bubLayout.findViewById<View>(R.id.optionsScroll)
-        val btnOption1 = bubLayout.findViewById<Button>(R.id.btn_option1)
-        val btnOption2 = bubLayout.findViewById<Button>(R.id.btn_option2)
-        val btnOption3 = bubLayout.findViewById<Button>(R.id.btn_option3)
-        val btnCopy1 = bubLayout.findViewById<Button>(R.id.btn_copy1)
-        val btnCopy2 = bubLayout.findViewById<Button>(R.id.btn_copy2)
-        val btnCopy3 = bubLayout.findViewById<Button>(R.id.btn_copy3)
-        val optionsSelectable = bubLayout.findViewById<TextView>(R.id.optionsSelectable)
+        val optionsContainer = bubLayout.findViewById<LinearLayout>(R.id.optionsContainer)
+        val optionsSelectable = bubLayout.findViewById<android.widget.EditText>(R.id.optionsSelectable)
         val btnToggleSelect = bubLayout.findViewById<Button>(R.id.btn_toggle_select)
-        val btnCloseTop = bubLayout.findViewById<Button>(R.id.btn_close_top)
+        val btnCloseX = bubLayout.findViewById<Button>(R.id.btn_close_x)
         val customTonesRow = bubLayout.findViewById<LinearLayout>(R.id.customTonesRow)
         val btnCustom1 = bubLayout.findViewById<Button>(R.id.btn_custom1)
         val btnCustom2 = bubLayout.findViewById<Button>(R.id.btn_custom2)
@@ -302,7 +297,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         val grammarExplanation = bubLayout.findViewById<TextView>(R.id.grammarExplanation)
         val btnUseGrammar = bubLayout.findViewById<Button>(R.id.btn_use_grammar)
         val askAiScroll = bubLayout.findViewById<View>(R.id.askAiScroll)
-        val askAiResult = bubLayout.findViewById<TextView>(R.id.askAiResult)
+        val askAiResult = bubLayout.findViewById<android.widget.EditText>(R.id.askAiResult)
         val btnCopyAskAi = bubLayout.findViewById<Button>(R.id.btn_copy_ask_ai)
         val customName1 = prefs.getString("custom_name_1", "") ?: ""
         val customPrompt1 = prefs.getString("custom_prompt_1", "") ?: ""
@@ -319,6 +314,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         }
         fun resetResults() {
             optionsScroll.visibility = View.GONE
+            optionsContainer.removeAllViews()
             optionsSelectable.visibility = View.GONE
             btnToggleSelect.visibility = View.GONE
             btnToggleSelect.text = "📝 Select partial text"
@@ -326,7 +322,48 @@ class RephraseAccessibilityService : AccessibilityService() {
             btnUseGrammar.visibility = View.GONE
             askAiScroll.visibility = View.GONE
             btnCopyAskAi.visibility = View.GONE
-            btnCloseTop.visibility = View.GONE
+        }
+        // Build a single option row: [big "N. text" USE button | 56dp Copy button]
+        fun buildOptionRow(index: Int, text: String, pasteFn: (String) -> Unit) {
+            val row = LinearLayout(this@RephraseAccessibilityService)
+            row.orientation = LinearLayout.HORIZONTAL
+            val rowParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            rowParams.bottomMargin = 10
+            row.layoutParams = rowParams
+
+            val useBtn = Button(this@RephraseAccessibilityService)
+            val useParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            useParams.marginEnd = 10
+            useBtn.layoutParams = useParams
+            useBtn.text = "${index + 1}. $text"
+            useBtn.textSize = 12f
+            useBtn.isAllCaps = false
+            useBtn.setBackgroundColor(android.graphics.Color.parseColor("#238636"))
+            useBtn.setTextColor(android.graphics.Color.WHITE)
+            useBtn.setPadding(24, 20, 16, 20)
+            useBtn.gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            useBtn.setOnClickListener { pasteFn(text); dismissBubble() }
+
+            val copyBtn = Button(this@RephraseAccessibilityService)
+            copyBtn.layoutParams = LinearLayout.LayoutParams(140, LinearLayout.LayoutParams.WRAP_CONTENT)
+            copyBtn.text = "Copy"
+            copyBtn.textSize = 11f
+            copyBtn.isAllCaps = false
+            copyBtn.setBackgroundColor(android.graphics.Color.parseColor("#0e7490"))
+            copyBtn.setTextColor(android.graphics.Color.WHITE)
+            copyBtn.setPadding(8, 20, 8, 20)
+            copyBtn.setOnClickListener {
+                val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cb.setPrimaryClip(ClipData.newPlainText("rephrased", text))
+                Toast.makeText(this@RephraseAccessibilityService, "Option ${index + 1} copied!", Toast.LENGTH_SHORT).show()
+            }
+
+            row.addView(useBtn)
+            row.addView(copyBtn)
+            optionsContainer.addView(row)
         }
         fun pasteResult(text: String) {
             val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -349,24 +386,19 @@ class RephraseAccessibilityService : AccessibilityService() {
                 handler.post {
                     if (result != null) {
                         val options = parseOptions(result)
-                        // First 3 go in the big tap-to-USE buttons
-                        btnOption1.text = "1. ${options.getOrElse(0) { "" }}"
-                        btnOption2.text = "2. ${options.getOrElse(1) { "" }}"
-                        btnOption3.text = "3. ${options.getOrElse(2) { "" }}"
-                        // Build the full selectable list (ALL options) for partial-text copy mode
+                        // Dynamically build a row per option (handles 1 to 15+)
+                        for ((i, opt) in options.withIndex()) {
+                            buildOptionRow(i, opt) { t -> pasteResult(t) }
+                        }
+                        // Build the full selectable list for partial-text copy mode
                         val numbered = options.mapIndexed { i, s -> "${i + 1}. $s" }.joinToString("\n\n")
-                        optionsSelectable.text = numbered
+                        optionsSelectable.setText(numbered)
                         optionsScroll.visibility = View.VISIBLE
                         btnToggleSelect.visibility = View.VISIBLE
-                        btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = if (options.size > 3)
-                            "${options.size} options · tap 📝 to see all & select partial text"
-                        else
-                            "Tap option to USE · Copy to copy whole · 📝 for partial"
+                        statusMsg.text = "${options.size} options · tap to USE · Copy to copy whole · 📝 for partial"
                     } else {
                         val errDetail = if (lastErrorMsg.isNotEmpty()) lastErrorMsg else "Check API key & provider in settings."
                         statusMsg.text = "Failed: $errDetail"
-                        btnCloseTop.visibility = View.VISIBLE
                     }
                 }
             }
@@ -384,7 +416,6 @@ class RephraseAccessibilityService : AccessibilityService() {
                         grammarExplanation.text = explanation
                         grammarScroll.visibility = View.VISIBLE
                         btnUseGrammar.visibility = View.VISIBLE
-                        btnCloseTop.visibility = View.VISIBLE
                         statusMsg.text = "Grammar check done"
                         btnUseGrammar.setOnClickListener {
                             pasteResult(corrected)
@@ -392,7 +423,6 @@ class RephraseAccessibilityService : AccessibilityService() {
                         }
                     } else {
                         statusMsg.text = "Failed. Check API key & provider in settings."
-                        btnCloseTop.visibility = View.VISIBLE
                     }
                 }
             }
@@ -403,15 +433,13 @@ class RephraseAccessibilityService : AccessibilityService() {
             callApi(inputText, prompt, true) { result ->
                 handler.post {
                     if (result != null) {
-                        askAiResult.text = result
+                        askAiResult.setText(result)
                         askAiScroll.visibility = View.VISIBLE
                         btnCopyAskAi.visibility = View.VISIBLE
-                        btnCloseTop.visibility = View.VISIBLE
-                        statusMsg.text = "AI Response · tap Copy Answer to copy"
+                        statusMsg.text = "AI Response · select text or tap Copy Answer"
                     } else {
                         val errDetail = if (lastErrorMsg.isNotEmpty()) lastErrorMsg else "Check API key & provider in settings."
                         statusMsg.text = "Failed: $errDetail"
-                        btnCloseTop.visibility = View.VISIBLE
                     }
                 }
             }
@@ -424,30 +452,38 @@ class RephraseAccessibilityService : AccessibilityService() {
                 Toast.makeText(this, "Answer copied!", Toast.LENGTH_SHORT).show()
             }
         }
-        // Long-press the AI answer area to enter selectable mode (for partial copy)
-        askAiResult.setOnLongClickListener {
-            params.flags = 0  // focusable so long-press selection menu appears
+        // Focus-friendly flag combinations:
+        //  - notFocusableFlags : default — overlay doesn't steal keyboard focus from the text field below
+        //  - focusableFlags    : for selection mode — allows selection menu, uses NOT_TOUCH_MODAL so outside taps still work
+        val focusableFlags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+        val notFocusableFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+
+        // Tap the AI answer area → enable selection on it
+        askAiResult.setOnClickListener {
+            params.flags = focusableFlags
             try { windowManager?.updateViewLayout(bubLayout, params) } catch (e: Exception) {}
-            Toast.makeText(this, "Now long-press again on the text to select", Toast.LENGTH_SHORT).show()
-            true
+            askAiResult.requestFocus()
+            askAiResult.setSelection(0)
+            Toast.makeText(this, "Long-press to select text", Toast.LENGTH_SHORT).show()
         }
-        // Toggle between the 3-button USE view and the fully selectable text view (all options)
+        // Toggle between per-option buttons and the full selectable EditText (all options)
         btnToggleSelect.setOnClickListener {
             if (optionsSelectable.visibility == View.VISIBLE) {
-                // Back to buttons — make the window non-focusable again so the underlying text field keeps focus
                 optionsSelectable.visibility = View.GONE
                 optionsScroll.visibility = View.VISIBLE
                 btnToggleSelect.text = "📝 Select partial text"
-                params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                params.flags = notFocusableFlags
                 try { windowManager?.updateViewLayout(bubLayout, params) } catch (e: Exception) {}
             } else {
-                // Show all options as selectable text — make window focusable so textIsSelectable works
                 optionsScroll.visibility = View.GONE
                 optionsSelectable.visibility = View.VISIBLE
                 btnToggleSelect.text = "⬅ Back to buttons"
-                params.flags = 0  // focusable: lets long-press selection menu appear
+                params.flags = focusableFlags
                 try { windowManager?.updateViewLayout(bubLayout, params) } catch (e: Exception) {}
-                Toast.makeText(this, "Long-press to select, then Copy from menu", Toast.LENGTH_LONG).show()
+                optionsSelectable.requestFocus()
+                optionsSelectable.setSelection(0)
+                Toast.makeText(this, "Long-press text → select → Copy", Toast.LENGTH_LONG).show()
             }
         }
         bubLayout.findViewById<Button>(R.id.btn_formal).setOnClickListener { rephrase(tones["formal"]!!) }
@@ -464,17 +500,15 @@ class RephraseAccessibilityService : AccessibilityService() {
             if (askAiPrompt.isNotEmpty()) askAi(askAiPrompt)
             else {
                 statusMsg.text = "Set your question in RePhrase settings first!"
-                btnCloseTop.visibility = View.VISIBLE
             }
         }
         // For custom tones, the user's own prompt controls the count (e.g. "give 10 variations")
-        // Only append numbered-format hint if their prompt doesn't already specify a count
         fun buildCustomPrompt(userPrompt: String): String {
             val mentionsCount = Regex("\\b\\d+\\b").containsMatchIn(userPrompt)
             return if (mentionsCount) {
-                "$userPrompt\n\nFormat each as a numbered list: 1. ... 2. ... 3. ... etc."
+                "$userPrompt\n\nFormat each as a numbered list: 1. ... 2. ... 3. ... etc. Each option must be meaningfully different."
             } else {
-                "Give exactly 3 numbered rephrasing options. $userPrompt Format:\n1. ...\n2. ...\n3. ..."
+                "Give exactly 10 distinct numbered rephrasing options. $userPrompt. Each must be meaningfully different. Format as:\n1. ...\n2. ...\n...\n10. ..."
             }
         }
         if (customPrompt1.isNotEmpty()) btnCustom1.setOnClickListener {
@@ -486,50 +520,10 @@ class RephraseAccessibilityService : AccessibilityService() {
         if (customPrompt3.isNotEmpty()) btnCustom3.setOnClickListener {
             rephrase(buildCustomPrompt(customPrompt3))
         }
-        btnOption1.setOnClickListener {
-            var t = btnOption1.text.toString()
-            if (t.startsWith("1. ")) t = t.substring(3)
-            pasteResult(t); dismissBubble()
-        }
-        btnOption2.setOnClickListener {
-            var t = btnOption2.text.toString()
-            if (t.startsWith("2. ")) t = t.substring(3)
-            pasteResult(t); dismissBubble()
-        }
-        btnOption3.setOnClickListener {
-            var t = btnOption3.text.toString()
-            if (t.startsWith("3. ")) t = t.substring(3)
-            pasteResult(t); dismissBubble()
-        }
-        // Copy buttons — copy to clipboard only, bubble stays open
-        btnCopy1.setOnClickListener {
-            var t = btnOption1.text.toString()
-            if (t.startsWith("1. ")) t = t.substring(3)
-            if (t.isNotEmpty()) {
-                val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cb.setPrimaryClip(ClipData.newPlainText("rephrased", t))
-                Toast.makeText(this, "Option 1 copied!", Toast.LENGTH_SHORT).show()
-            }
-        }
-        btnCopy2.setOnClickListener {
-            var t = btnOption2.text.toString()
-            if (t.startsWith("2. ")) t = t.substring(3)
-            if (t.isNotEmpty()) {
-                val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cb.setPrimaryClip(ClipData.newPlainText("rephrased", t))
-                Toast.makeText(this, "Option 2 copied!", Toast.LENGTH_SHORT).show()
-            }
-        }
-        btnCopy3.setOnClickListener {
-            var t = btnOption3.text.toString()
-            if (t.startsWith("3. ")) t = t.substring(3)
-            if (t.isNotEmpty()) {
-                val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cb.setPrimaryClip(ClipData.newPlainText("rephrased", t))
-                Toast.makeText(this, "Option 3 copied!", Toast.LENGTH_SHORT).show()
-            }
-        }
-        btnCloseTop.setOnClickListener { dismissBubble() }
+        // Always-visible ✕ dismisses the bubble immediately — safe against accidental taps
+        btnCloseX.setOnClickListener { dismissBubble() }
+        // Start in non-focusable mode so the text field below keeps focus
+        params.flags = notFocusableFlags
         try { windowManager?.addView(bubLayout, params) } catch (e: Exception) {}
     }
 
