@@ -38,14 +38,17 @@ class RephraseAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private val client = OkHttpClient.Builder()
         .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
         .writeTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
-        .callTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+        .callTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
         .build()
     private lateinit var prefs: SharedPreferences
     private var isDisabledForApp = false
     private var isKeyboardVisible = false
     private var lastErrorMsg = ""
+    private var lastProviderModel = ""  // model id that produced the last OpenAI answer
+    private var lastProviderUsed = ""   // which provider actually produced the last answer
+    private var fallbackNote = ""       // why the selected provider was skipped, if it was
 
     companion object {
         var isEnabled = true
@@ -400,7 +403,9 @@ class RephraseAccessibilityService : AccessibilityService() {
                         optionsSelectable.setText(numbered)
                         optionsScroll.visibility = View.VISIBLE
                         btnToggleSelect.visibility = View.VISIBLE
-                        statusMsg.text = "${options.size} options · tap to USE · Copy to copy whole · 📝 for partial"
+                        statusMsg.text = "${options.size} options via ${lastProviderUsed.uppercase()}" +
+                            (if (lastProviderUsed == "openai" && lastProviderModel.isNotEmpty()) " ($lastProviderModel)" else "") +
+                            (if (fallbackNote.isNotEmpty()) " · $fallbackNote" else "")
                     } else {
                         val errDetail = if (lastErrorMsg.isNotEmpty()) lastErrorMsg else "Check API key & provider in settings."
                         statusMsg.text = "Failed: $errDetail"
@@ -421,7 +426,8 @@ class RephraseAccessibilityService : AccessibilityService() {
                         grammarExplanation.text = explanation
                         grammarScroll.visibility = View.VISIBLE
                         btnUseGrammar.visibility = View.VISIBLE
-                        statusMsg.text = "Grammar check done"
+                        statusMsg.text = "Grammar check via ${lastProviderUsed.uppercase()}" +
+                            (if (fallbackNote.isNotEmpty()) " · $fallbackNote" else "")
                         btnUseGrammar.setOnClickListener {
                             pasteResult(corrected)
                             dismissBubble()
@@ -442,7 +448,8 @@ class RephraseAccessibilityService : AccessibilityService() {
                         askAiScroll.visibility = View.VISIBLE
                         askAiCopyRow.visibility = View.VISIBLE
                         btnCopyAskAi.visibility = View.VISIBLE
-                        statusMsg.text = "AI Response · select text or tap Copy Answer"
+                        statusMsg.text = "AI Response via ${lastProviderUsed.uppercase()}" +
+                            (if (fallbackNote.isNotEmpty()) " · $fallbackNote" else "")
                     } else {
                         val errDetail = if (lastErrorMsg.isNotEmpty()) lastErrorMsg else "Check API key & provider in settings."
                         statusMsg.text = "Failed: $errDetail"
@@ -602,11 +609,6 @@ class RephraseAccessibilityService : AccessibilityService() {
         )
         val (key, keyFile, keyFound) = findPrefValue(keyNames)
         // DEBUG: show what we actually found and where
-        handler.post {
-            val keyPreview = if (key.isEmpty()) "EMPTY!" else "${key.take(6)}... (${key.length} chars)"
-            val src = if (keyFile.isEmpty()) "none" else "$keyFile/$keyFound"
-            Toast.makeText(this, "Provider:$provider | Key:$keyPreview | Src:$src", Toast.LENGTH_SHORT).show()
-        }
         if (key.isEmpty()) {
             // Scan actual shared_prefs directory on disk to see what files SettingsActivity really creates
             val diskReport = StringBuilder()
@@ -662,13 +664,14 @@ class RephraseAccessibilityService : AccessibilityService() {
             callback(null); return
         }
         val (provider, key) = chain[index]
-        handler.post {
-            Toast.makeText(this, "Trying $provider (${index + 1}/${chain.size})...", Toast.LENGTH_SHORT).show()
-        }
+        if (index == 0) { lastProviderUsed = ""; fallbackNote = "" }
         val wrapped: (String?) -> Unit = { result ->
             if (result != null) {
+                lastProviderUsed = provider
                 callback(result)
             } else {
+                // Remember why this provider failed so the bubble can show it
+                fallbackNote += "$provider failed (${lastErrorMsg.take(60)}) "
                 // Fall through to next provider
                 handler.post {
                     if (index + 1 < chain.size) {
@@ -690,7 +693,7 @@ class RephraseAccessibilityService : AccessibilityService() {
         messages.put(JSONObject().put("role", "user").put("content", if (isDirect) userContent else "$prompt\n\n$userContent"))
         val body = JSONObject()
         body.put("model", "claude-haiku-4-5-20251001")
-        body.put("max_tokens", 1000)
+        body.put("max_tokens", 2500)
         if (!isDirect) body.put("system", prompt)
         body.put("messages", messages)
         val req = Request.Builder()
@@ -723,13 +726,17 @@ class RephraseAccessibilityService : AccessibilityService() {
         })
     }
 
-    private fun callOpenAI(key: String, prompt: String, userContent: String, isDirect: Boolean, callback: (String?) -> Unit) {
+    // Tried in order; if a model id is rejected (retired / no access), the next one is used.
+    private val openAiModels = listOf("gpt-6.1-terra", "gpt-6-luna", "gpt-4o-mini")
+
+    private fun callOpenAI(key: String, prompt: String, userContent: String, isDirect: Boolean, callback: (String?) -> Unit, modelIdx: Int = 0) {
         val messages = JSONArray()
         if (!isDirect) messages.put(JSONObject().put("role", "system").put("content", prompt))
         messages.put(JSONObject().put("role", "user").put("content", userContent))
         val body = JSONObject()
-        body.put("model", "gpt-4o-mini")
-        body.put("max_tokens", 1000)
+        body.put("model", openAiModels[modelIdx])
+        // Newer OpenAI models reject "max_tokens"; "max_completion_tokens" is the current name
+        body.put("max_completion_tokens", 2500)
         body.put("messages", messages)
         val req = Request.Builder()
             .url("https://api.openai.com/v1/chat/completions")
@@ -748,9 +755,15 @@ class RephraseAccessibilityService : AccessibilityService() {
                     val json = JSONObject(responseStr)
                     if (!response.isSuccessful) {
                         val errMsg = json.optJSONObject("error")?.optString("message") ?: "HTTP ${response.code}"
-                        lastErrorMsg = "OpenAI ${response.code}: $errMsg"
+                        lastErrorMsg = "OpenAI(${openAiModels[modelIdx]}) ${response.code}: $errMsg"
+                        // Model id rejected → try the next model before giving up on OpenAI
+                        if ((response.code == 404 || response.code == 400) && modelIdx + 1 < openAiModels.size) {
+                            callOpenAI(key, prompt, userContent, isDirect, callback, modelIdx + 1)
+                            return
+                        }
                         callback(null); return
                     }
+                    lastProviderModel = openAiModels[modelIdx]
                     callback(json.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content"))
                 } catch (e: Exception) {
                     lastErrorMsg = "OpenAI parse: ${responseStr.take(80)}"
